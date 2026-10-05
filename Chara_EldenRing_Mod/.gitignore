@@ -1,0 +1,17 @@
+# Never commit game data or anything extracted from it.
+local_assets/
+backup/
+build/
+reports/
+*.dcx
+*.bdt
+*.bhd
+*.sl2
+*.co2
+regulation.bin
+data.win
+*.ogg
+*.wav
+
+__pycache__/
+*.pyc

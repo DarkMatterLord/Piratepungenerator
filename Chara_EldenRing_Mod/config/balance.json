@@ -1,0 +1,144 @@
+{
+  "schema_version": 1,
+  "default_profile": "balanced",
+  "_doc": "Single source of truth for Chara's numbers. Edit here, then run `python tools/balance.py doc` to regenerate docs/BALANCE_VALUES.md. Multipliers ending in _vs_donor / _vs_r1 are relative to the donor weapon / Real Knife R1 so they survive game patches. Hard safety rules are enforced by `python tools/balance.py validate`.",
+
+  "vanilla_reference": {
+    "_source": "Vanilla starting classes as known at design time. NOT read from your files: confirm against CharaInitParam with tools/verify_params.py before trusting the bounds derived from them.",
+    "level_offset": 79,
+    "stat_order": ["vigor", "mind", "endurance", "strength", "dexterity", "intelligence", "faith", "arcane"],
+    "classes": {
+      "vagabond":   [9, 15, 10, 11, 14, 13,  9,  9,  7],
+      "warrior":    [8, 11, 12, 11, 10, 16, 10,  8,  9],
+      "hero":       [7, 14,  9, 12, 16,  9,  7,  8, 11],
+      "bandit":     [5, 10, 11, 10,  9, 13,  9,  8, 14],
+      "astrologer": [6,  9, 15,  9,  8, 12, 16,  7,  9],
+      "prophet":    [7, 10, 14,  8, 11, 10,  7, 16, 10],
+      "samurai":    [9, 12, 11, 13, 12, 15,  9,  8,  8],
+      "prisoner":   [9, 11, 12, 11, 11, 14, 14,  6,  9],
+      "confessor":  [10, 10, 13, 10, 12, 12,  9, 14,  9],
+      "wretch":     [1, 10, 10, 10, 10, 10, 10, 10, 10]
+    }
+  },
+
+  "profiles": {
+    "balanced": {
+      "tier": "balanced",
+      "summary": "Comparable to normal Elden Ring progression. Default.",
+      "class": {
+        "replaces_slot": "bandit",
+        "level": 9,
+        "stats": {"vigor": 14, "mind": 11, "endurance": 12, "strength": 9, "dexterity": 17, "intelligence": 8, "faith": 8, "arcane": 9},
+        "starting_equipment": {"right_hand": ["real_knife"], "left_hand": [], "armor_set": "chara_outfit"}
+      },
+      "real_knife": {
+        "donor": "a vanilla dagger chosen in Smithbox (Dagger is the default candidate)",
+        "attack_physical_vs_donor": 1.15,
+        "critical": 140,
+        "scaling_target": {"strength": "E", "dexterity": "B"},
+        "requirements": {"strength": 5, "dexterity": 12},
+        "stamina_cost_vs_donor": 1.0,
+        "poise_damage_vs_donor": 1.1,
+        "upgrade_path": "smithing",
+        "infusable": false,
+        "skill": "determination"
+      },
+      "determination": {
+        "fp_cost": 15,
+        "duration_s": 25,
+        "attack_mult": 1.10,
+        "stamina_regen_mult": 1.15,
+        "poise_mult": 1.25,
+        "move_speed_mult": 1.05,
+        "incoming_damage_mult": 1.0,
+        "stackable": false,
+        "grants_invulnerability": false
+      },
+      "refusal": {
+        "charges": 1,
+        "rearm": "map_reload",
+        "hp_after_trigger": 1,
+        "invulnerable_s": 1.5,
+        "regen_window_s": 3.0,
+        "regen_pct_of_max_hp": 10,
+        "cleanse_on_trigger": ["poison", "scarlet_rot"],
+        "post_trigger_buff": null,
+        "applies_to": {
+          "direct_damage": true,
+          "bleed_burst": true,
+          "frostbite_burst": true,
+          "poison_tick": true,
+          "scarlet_rot_tick": true,
+          "grab_damage": true,
+          "fall_damage": false,
+          "kill_plane": false,
+          "deathblight": false,
+          "scripted_death": false
+        }
+      },
+      "red_slash": {
+        "fp_cost": 12,
+        "range_m": 6.0,
+        "width_m": 0.6,
+        "motion_value_vs_r1": 1.6,
+        "stance_damage_vs_r1": 1.5,
+        "startup_frames_60fps": 24,
+        "pierces_targets": false
+      },
+      "erase": {
+        "enabled": true,
+        "unlock": "defeat_remembrance_boss",
+        "unlock_boss_default": "Godrick the Grafted",
+        "fp_cost": 60,
+        "startup_s": 1.8,
+        "recovery_s": 1.4,
+        "range_m": 9.0,
+        "motion_value_vs_r1": 6.0,
+        "stance_damage_vs_r1": 5.0,
+        "bypasses_phase_transitions": false
+      },
+      "save_load": {
+        "enabled": false,
+        "status": "deferred: needs a runtime hook (see KNOWN_LIMITATIONS.md)",
+        "fp_cost_save": 20,
+        "window_s": 20,
+        "hp_restore_cap_pct": 50,
+        "max_distance_m": 30,
+        "restores": ["position", "hp"]
+      }
+    },
+
+    "lore": {
+      "inherits": "balanced",
+      "tier": "lore",
+      "summary": "Crossover fantasy: Chara is overwhelming. Not balanced against bosses.",
+      "class": {
+        "level": 33,
+        "stats": {"vigor": 20, "mind": 15, "endurance": 16, "strength": 10, "dexterity": 26, "intelligence": 8, "faith": 8, "arcane": 9}
+      },
+      "real_knife": {"attack_physical_vs_donor": 1.4, "critical": 160, "scaling_target": {"strength": "E", "dexterity": "A"}},
+      "determination": {"fp_cost": 10, "duration_s": 40, "attack_mult": 1.25, "stamina_regen_mult": 1.3, "poise_mult": 1.5, "move_speed_mult": 1.1},
+      "refusal": {"charges": 3, "invulnerable_s": 2.0, "regen_pct_of_max_hp": 30},
+      "red_slash": {"fp_cost": 8, "range_m": 8.0, "motion_value_vs_r1": 2.0},
+      "erase": {"unlock": "start", "fp_cost": 45, "startup_s": 1.4}
+    },
+
+    "challenge": {
+      "inherits": "balanced",
+      "tier": "challenge",
+      "summary": "Glass cannon: razor-thin defences, exceptional offence.",
+      "class": {
+        "stats": {"vigor": 8, "mind": 12, "endurance": 10, "strength": 8, "dexterity": 22, "intelligence": 7, "faith": 7, "arcane": 14}
+      },
+      "real_knife": {"attack_physical_vs_donor": 1.25, "critical": 160},
+      "determination": {"duration_s": 20, "attack_mult": 1.2, "incoming_damage_mult": 1.15},
+      "refusal": {
+        "invulnerable_s": 1.0,
+        "regen_window_s": 0,
+        "regen_pct_of_max_hp": 0,
+        "cleanse_on_trigger": [],
+        "post_trigger_buff": {"attack_mult": 1.2, "duration_s": 10}
+      }
+    }
+  }
+}

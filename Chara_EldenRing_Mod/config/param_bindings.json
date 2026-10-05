@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "_doc": "Maps balance.json keys to regulation params. Every field and row ID here is UNVERIFIED until tools/verify_params.py checks it against CSVs exported from YOUR regulation.bin in Smithbox. 'field' values are community Paramdex names recalled at design time. Where no name is trusted, 'reference' names a vanilla row that already has the effect: open it in Smithbox, see which field it changes, and use that field.",
+
+  "rows": {
+    "class": {
+      "param": "CharaInitParam",
+      "kind": "existing",
+      "by_slot": {"vagabond": 3000, "warrior": 3001, "hero": 3002, "bandit": 3003, "astrologer": 3004,
+                  "prophet": 3005, "confessor": 3006, "samurai": 3007, "prisoner": 3008, "wretch": 3009},
+      "verified": false
+    },
+    "real_knife": {"param": "EquipParamWeapon", "kind": "new", "id": 20260000, "span": 26,
+                   "note": "base row plus +1..+25 upgrade rows", "verified": false},
+    "determination_buff": {"param": "SpEffectParam", "kind": "new", "id": 2026000, "verified": false},
+    "refusal_invuln": {"param": "SpEffectParam", "kind": "new", "id": 2026010, "verified": false},
+    "refusal_regen": {"param": "SpEffectParam", "kind": "new", "id": 2026011, "verified": false},
+    "refusal_marker": {"param": "SpEffectParam", "kind": "new", "id": 2026012, "verified": false},
+    "red_slash_bullet": {"param": "Bullet", "kind": "new", "id": 2026100, "verified": false},
+    "red_slash_attack": {"param": "AtkParam_Pc", "kind": "new", "id": 2026100, "verified": false},
+    "erase_bullet": {"param": "Bullet", "kind": "new", "id": 2026200, "verified": false},
+    "erase_attack": {"param": "AtkParam_Pc", "kind": "new", "id": 2026200, "verified": false}
+  },
+
+  "fields": {
+    "class.level":              {"row": "class", "field": "soulLv"},
+    "class.stats.vigor":        {"row": "class", "field": "baseVit"},
+    "class.stats.mind":         {"row": "class", "field": "baseWil"},
+    "class.stats.endurance":    {"row": "class", "field": "baseEnd"},
+    "class.stats.strength":     {"row": "class", "field": "baseStr"},
+    "class.stats.dexterity":    {"row": "class", "field": "baseDex"},
+    "class.stats.intelligence": {"row": "class", "field": "baseMag"},
+    "class.stats.faith":        {"row": "class", "field": "baseFai"},
+    "class.stats.arcane":       {"row": "class", "field": "baseLuc"},
+    "class.starting_equipment.right_hand": {"row": "class", "field": "equip_Wep_Right", "op": "row_ref"},
+
+    "real_knife.attack_physical_vs_donor": {"row": "real_knife", "field": "attackBasePhysics", "op": "scale_donor"},
+    "real_knife.critical":                 {"row": "real_knife", "field": "throwAtkRate", "op": "critical_offset"},
+    "real_knife.requirements.strength":    {"row": "real_knife", "field": "properStrength"},
+    "real_knife.requirements.dexterity":   {"row": "real_knife", "field": "properAgility"},
+    "real_knife.scaling_target.strength":  {"row": "real_knife", "field": "correctStrength", "op": "grade"},
+    "real_knife.scaling_target.dexterity": {"row": "real_knife", "field": "correctAgility", "op": "grade"},
+    "real_knife.stamina_cost_vs_donor":    {"row": "real_knife", "reference": "donor AtkParam_Pc rows (stamina cost per attack)", "op": "scale_donor"},
+    "real_knife.poise_damage_vs_donor":    {"row": "real_knife", "reference": "donor AtkParam_Pc rows (poise damage per attack)", "op": "scale_donor"},
+
+    "determination.duration_s":           {"row": "determination_buff", "field": "effectEndurance"},
+    "determination.attack_mult":          {"row": "determination_buff", "field": "physicsAttackPowerRate"},
+    "determination.stamina_regen_mult":   {"row": "determination_buff", "reference": "Green Turtle Talisman's SpEffect", "op": "derive_from_base_regen"},
+    "determination.poise_mult":           {"row": "determination_buff", "reference": "Bull-Goat's Talisman's SpEffect"},
+    "determination.move_speed_mult":      {"row": "determination_buff", "reference": "none known; drop this effect if no vanilla row changes movement speed"},
+    "determination.incoming_damage_mult": {"row": "determination_buff", "reference": "any vanilla debuff that raises damage taken (copy its negation-rate fields)"},
+    "determination.fp_cost":              {"row": "determination_buff", "reference": "FP-cost field on the SwordArtsParam row of a vanilla FP skill"},
+
+    "refusal.invulnerable_s":      {"row": "refusal_invuln", "field": "effectEndurance"},
+    "refusal.regen_window_s":      {"row": "refusal_regen", "field": "effectEndurance"},
+    "refusal.regen_pct_of_max_hp": {"row": "refusal_regen", "reference": "a vanilla regeneration SpEffect (e.g. Blessed Dew Talisman) for the per-tick HP field"},
+
+    "red_slash.fp_cost":             {"row": "red_slash_attack", "reference": "SwordArtsParam FP cost of Bloody Slash (technical donor)"},
+    "red_slash.range_m":             {"row": "red_slash_bullet", "reference": "Bloody Slash bullet: life/speed fields set the reach"},
+    "red_slash.motion_value_vs_r1":  {"row": "red_slash_attack", "reference": "Bloody Slash AtkParam_Pc motion-value fields", "op": "scale_r1"},
+    "red_slash.stance_damage_vs_r1": {"row": "red_slash_attack", "reference": "Bloody Slash AtkParam_Pc poise-damage field", "op": "scale_r1"},
+
+    "erase.fp_cost":             {"row": "erase_attack", "reference": "SwordArtsParam FP cost field"},
+    "erase.range_m":             {"row": "erase_bullet", "reference": "a large-arc vanilla skill bullet"},
+    "erase.motion_value_vs_r1":  {"row": "erase_attack", "reference": "AtkParam_Pc motion-value fields", "op": "scale_r1"},
+    "erase.stance_damage_vs_r1": {"row": "erase_attack", "reference": "AtkParam_Pc poise-damage field", "op": "scale_r1"}
+  }
+}
