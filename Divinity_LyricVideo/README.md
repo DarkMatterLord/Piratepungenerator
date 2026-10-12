@@ -6,7 +6,7 @@ A 1920×1080, 30 fps lyric video for **Divinity** (4:32). It is built from 38 st
 
 | File | What it is |
 |---|---|
-| `Divinity_Lyric_Video.mp4` | The finished video (H.264 + AAC) |
+| `Divinity_Lyric_Video.mp4` | The finished video: 1920×1080, 30 fps, H.264 at about 2.7 Mbps + AAC 192k, 92 MB (sized to fit GitHub's 100 MB file limit) |
 | `Divinity.srt` | Line-timed subtitles, usable as closed captions on YouTube |
 | `Divinity.lrc` | Line-timed lyrics for music players |
 | `STORYBOARD.md` | The shot list: frame, timecode, transition, camera move and lyric for each shot |
