@@ -1,0 +1,13 @@
+{
+  "name": "mr-weathervane-video",
+  "private": true,
+  "type": "module",
+  "description": "Paper-motion music video renderer for \"A Hundred Percent Chance of Demise\"",
+  "scripts": {
+    "snap": "node tools/render.mjs snap",
+    "frames": "node tools/render.mjs frames"
+  },
+  "devDependencies": {
+    "playwright": "1.56.1"
+  }
+}

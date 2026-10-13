@@ -1,0 +1,8 @@
+node_modules/
+frames/
+out/
+*.wav
+*.mp3
+*.mp4
+# generated from the song (contains its lyrics) - rebuild with tools/, see README
+data.js
