@@ -39,9 +39,10 @@ function coldBust(key, lt, pose, o = {}) {
 SCENES.wordChosen = (lt, p) => coldBust('chosen', lt, { brow: 0.4, smirk: 0, lookY: 0.5, look: Math.sin(E.T * 1.6) * 0.35, nimbus: 0.4 }, { dur: 4.7 });
 // the light drains from their veins; they turn away
 SCENES.refusal = (lt, p) => {
-  E.light = sunLight(960, 420, 700, 0.55, 0.4);
+  E.light = sunLight(960, 420, 760, 0.8, 0.45);
   withCamera(camAt(lt, 4.2, { z0: 1.0, z1: 1.06 }), () => {
-    quarries('ref', 0, 0, W, H, 86, (x, y, c) => (hash(c.seed) < 0.2 ? '#4a2a3a' : '#24161e'), { leadW: 3.5 });
+    quarries('ref', 0, 0, W, H, 86, (x, y, c) => (hash(c.seed) < 0.2 ? '#6a3a5a' : '#3a2440'), { leadW: 3.5 });
+    rosettes('ref', 0, 0, W, H, 86, ['#c8a8b8']);
     for (let i = 0; i < 5; i++) {
       const turn = lt > 0.8 + i * 0.5, glow = clamp(1 - (lt - 0.2 - i * 0.35) / 0.8);
       drawPerson(250 + i * 355, 1040, 0.98, { kind: 'shaikan', back: turn, arms: turn ? 'down' : 'cover', glow, look: (2 - i) * 0.3, flip: i > 2 });
@@ -281,9 +282,9 @@ SCENES.heal = (lt, p) => {
 // the red light finds them anyway
 SCENES.saved = (lt, p) => {
   const u = smooth(clamp(lt / 2.6));
-  E.light = sunLight(960, 200, 700, 0.5, 0.6);
+  E.light = sunLight(960, 300, 800, 0.78, 0.5);
   withCamera(camAt(lt, 3.1, { z0: 1.0, z1: 1.06 }), () => {
-    quarries('saved', 0, 0, W, H, 86, (x, y, c) => lerpRGB(hash(c.seed) < 0.2 ? '#2a3a5a' : '#1a2238', hash(c.seed) < 0.5 ? '#7a0a14' : '#3a0410', clamp(u * 1.4 - y / H * 0.8)), { leadW: 3.5 });
+    quarries('saved', 0, 0, W, H, 86, (x, y, c) => lerpRGB(hash(c.seed) < 0.2 ? '#3a4a7a' : '#24305a', hash(c.seed) < 0.5 ? '#a00c18' : '#5a0610', clamp(u * 1.4 - y / H * 0.8)), { leadW: 3.5 });
     for (let i = 0; i < 7; i++) drawPerson(150 + i * 270, 1050 - (i % 2) * 30, 0.9, { kind: 'shaikan', arms: u < 0.6 ? 'point' : 'cover', mouth: 'open', brow: 1, frown: 1, glow: u, flip: i > 3, look: (3 - i) * 0.25 });
     lightBeam(960, -40, 400, 960, 1200, 2400, '#ff3020', 0.25 * u);
   });

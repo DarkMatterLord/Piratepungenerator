@@ -243,23 +243,33 @@ SCENES.paradise = (lt, p) => {
 // chorus line 8: the hand closes on the world
 SCENES.closeHand = (lt, p) => {
   const v = p.v || 1, t = E.T;
-  const close = smooth(clamp((lt - 0.6) / 2.6));
-  E.light = sunLight(960, 600, 560, 0.55, 0.7);
+  const close = smooth(clamp((lt - 0.3) / 2.8)), grip = smooth(clamp((close - 0.55) / 0.45));
+  E.light = sunLight(960, 600, 620, 0.55, 0.6);
   quarries('close' + v, 0, 0, W, H, 88, (x, y, c) => (v >= 2 ? (hash(c.seed) < 0.2 ? '#4a0610' : '#24030a') : (hash(c.seed) < 0.2 ? '#3a1f8a' : '#1a1458')), { leadW: 3.5 });
-  withCamera(camAt(lt, 4.6, { z0: 1.0, z1: 1.15, y0: 560, y1: 600 }), () => {
-    // the broken land as a cracked globe
-    const gs = 0.25, gy = 690;
-    push(960, gy); ctx.scale(gs, gs); ctx.translate(-960, -540);
+  rosettes('close' + v, 0, 0, W, H, 88, v >= 2 ? ['#ff3020'] : ['#ffcc40']);
+  withCamera(camAt(lt, 4.6, { z0: 1.0, z1: 1.12, y0: 540, y1: 600 }), () => {
+    // the broken land as a cracked glass globe; the blood runs in from where his fingers touch
+    const gx = 960, gy = 660, gr = 240, gs = gr / 640;
+    push(gx, gy); ctx.scale(gs, gs); ctx.translate(-960, -540);
     const clip = new Path2D(); clip.arc(960, 540, 640, 0, TAU);
     ctx.save(); ctx.clip(clip);
-    drawMap(lt, { borderBlood: close > 0.1 ? 1 : 0, bloodFrom: [960, 540, close * 1100], bleed: (c) => close * 0.8 });
+    drawMap(lt, { borderBlood: grip > 0 ? 1 : 0, bloodFrom: [960, 120, grip * 1500], bleed: (c) => grip * clamp((grip * 1500 - Math.hypot(c.cx - 960, c.cy - 120)) / 400) * 0.9 });
     ctx.restore();
     lead(clip, 26);
-    drawCracks(crackPaths(960, 540, 640, 31, 1), 10);
+    const cr = crackPaths(960, 540, 640, 31, 1);
+    drawCracks(cr, 9);
+    if (grip > 0) { ctx.save(); ctx.globalAlpha = grip; bloodLead(cr, 16, 1); ctx.restore(); }
     pop();
-    const kind = close < 0.33 ? 'open' : close < 0.72 ? 'claw' : 'fist';
-    bigHand(960 + Math.sin(t * 9) * 2 * close, lerp(-700, -150, close), 3.5, kind, 0, { wr: 0, blood: v === 3 ? 1 : 0 });
-    if (close > 0.72) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; const g = ctx.createRadialGradient(960, 690, 0, 960, 690, 420); g.addColorStop(0, `rgba(255,40,30,${0.4 * E.pulse})`); g.addColorStop(1, 'rgba(255,0,0,0)'); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H); ctx.restore(); }
+    // the hand descends and curls around it
+    const kind = close < 0.3 ? 'open' : close < 0.62 ? 'reach' : 'claw';
+    const ye = lerp(-1180, -760, close) + Math.sin(t * 9) * 3 * grip;
+    bigHand(gx, ye, 5.2, kind, 0, { wr: 0, blood: v === 3 ? 1 : 0 });
+    if (grip > 0) {
+      ctx.save(); ctx.globalCompositeOperation = 'lighter';
+      const g = ctx.createRadialGradient(gx, gy, 0, gx, gy, 520);
+      g.addColorStop(0, `rgba(255,40,30,${0.38 * grip * E.pulse})`); g.addColorStop(1, 'rgba(255,0,0,0)');
+      ctx.fillStyle = g; ctx.fillRect(0, 0, W, H); ctx.restore();
+    }
   });
   frameBorder(['#c8202c', '#ffcc40', '#4a0610', '#ffcc40']);
 };

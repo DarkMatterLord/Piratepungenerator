@@ -209,25 +209,18 @@ SCENES.ending = (lt, p) => {
   }
 };
 
-// the apotheosis: the whole cathedral burns red around his window
+// the apotheosis: from his blazing face back to the whole blood-god window
 SCENES.finale = (lt, p) => {
-  const u = clamp(lt / 6);
-  drawNave(lt, {
-    dolly: lerp(0.9, 0.2, smooth(u)),
-    pal: [['#c8101c', '#ff4a20', '#5a0610'], ['#ff2a1a', '#a00818', '#ffb030'], ['#7a0a14', '#ff3020', '#c8101c']],
-    lit: () => 1.1, beatK: 2,
-    apse: (w, h) => {
-      E.light = () => 1.1 + 0.3 * E.beat;
-      ctx.fillStyle = '#5a0610'; ctx.fillRect(0, 0, w, h);
-      const R = w * 0.42;
-      push(w / 2, h * 0.36, E.T * 0.3);
-      const r = roseWindow('axis', 0, 0, 520, 12);
-      ctx.scale(R / 520, R / 520);
-      drawRose(r, { fill: ['#5a0610', '#3a0410'], petal: ['#ff2a1a', '#ffb030', '#c8101c', '#ff6a30'], roundel: ['#ffcc40', '#a00818'], hub: ['#ff3020'] }, {});
-      pop();
-      push(w / 2, h * 0.92, 0, w / 1500); scaled(w / 1500, () => drawMalacay(mcPose({ x: 0, y: 0, s: 0.95, blood: 1, eyeGlow: 1, al: { sh: 1.5, el: -0.15, hand: 'claw' }, ar: { sh: 1.5, el: -0.15, hand: 'claw' } }), E.T)); pop();
-    },
-    apseLight: 1.2, apseCol: '#ff3020', candles: true,
+  const u = smooth(clamp(lt / 5.6));
+  const cam = { x: 960, y: lerp(250, 540, u), z: lerp(2.6, 1.0, u), r: 0 };
+  withCamera(cam, () => {
+    iconPanel(E.T, { lt: 5, heat: 1, blood: 1, lk: 1.15 });
   });
-  embers(0, 0, W, H, 70, E.T);
+  // the veins of the window throb with the drums
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  const g = ctx.createRadialGradient(960, 420, 0, 960, 420, 1200);
+  g.addColorStop(0, `rgba(255,40,30,${0.22 + 0.25 * E.beat})`); g.addColorStop(1, 'rgba(255,0,0,0)');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  ctx.restore();
+  embers(0, 0, W, H, 110, E.T);
 };
