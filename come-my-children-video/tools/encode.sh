@@ -14,16 +14,16 @@ fi
 AIDX=$(( ${#IN[@]} / 4 ))
 if [[ "$MODE" == master ]]; then
   ffmpeg -hide_banner -y "${IN[@]}" -i "$AUDIO" -filter_complex "$VF" -map "[v]" -map "$AIDX:a" \
-    -c:v libx264 -preset slow -tune animation -crf 18 -profile:v high -level 4.1 \
+    -c:v libx264 -preset medium -tune animation -crf 18 -profile:v high -level 4.1 \
     -c:a aac -b:a 256k -ar 48000 -movflags +faststart -shortest "$OUT"
 else
   # 6:13 at ~29 MiB total: ~560 kb/s video + 80 kb/s audio, 720p
   DUR=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$AUDIO")
   VB=$(python3 -c "print(int((29*8*1024*1024/float('$DUR') - 82000)/1000))")
   VF2="${VF%\[v\]},scale=1280:720:flags=lanczos[v]"
-  ffmpeg -hide_banner -y "${IN[@]}" -filter_complex "$VF2" -map "[v]" -an -c:v libx264 -preset slow -tune animation -b:v "${VB}k" -pass 1 -passlogfile /tmp/cmc2pass -f mp4 /dev/null
+  ffmpeg -hide_banner -y "${IN[@]}" -filter_complex "$VF2" -map "[v]" -an -c:v libx264 -preset medium -tune animation -b:v "${VB}k" -pass 1 -passlogfile /tmp/cmc2pass -f mp4 /dev/null
   ffmpeg -hide_banner -y "${IN[@]}" -i "$AUDIO" -filter_complex "$VF2" -map "[v]" -map "$AIDX:a" \
-    -c:v libx264 -preset slow -tune animation -b:v "${VB}k" -pass 2 -passlogfile /tmp/cmc2pass \
+    -c:v libx264 -preset medium -tune animation -b:v "${VB}k" -pass 2 -passlogfile /tmp/cmc2pass \
     -c:a aac -b:a 80k -ar 44100 -movflags +faststart -shortest "$OUT"
 fi
 ls -la "$OUT"
