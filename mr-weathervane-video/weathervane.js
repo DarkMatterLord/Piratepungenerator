@@ -485,9 +485,34 @@ function vocalAt(t) {
   const v = (D.voc[i] || 0) * 0.6 + (D.voc[i - 1] || 0) * 0.25 + (D.voc[i + 1] || 0) * 0.15;
   return v;
 }
+// Word-driven replacement mouths: each sung word flaps open/half/closed at a syllable-ish pace
+// (on twos); sustained notes hold open while the vocal envelope stays up.
+let _wordSpans = null;
+function wordSpans() {
+  if (_wordSpans) return _wordSpans;
+  _wordSpans = [];
+  for (const L of window.MV_DATA.lines) {
+    L.words.forEach((w, k) => {
+      const next = k + 1 < L.words.length ? L.words[k + 1].t : L.e;
+      const letters = w.w.replace(/[^A-Za-z]/g, '').length;
+      const dur = Math.max(0.14, Math.min(next - w.t - 0.02, 0.1 + letters * 0.07, 0.9));
+      _wordSpans.push([w.t, w.t + dur, L.e]);
+    });
+  }
+  return _wordSpans;
+}
+const MOUTH_CYCLE = [1, 0.5, 1, 0.5, 0, 1, 0.5, 1, 0];
 function mouthAt(t) {
-  const v = vocalAt(t);
-  return v > 0.42 ? 1 : v > 0.16 ? 0.5 : 0;
+  const sp = wordSpans();
+  let lo = 0, hi = sp.length - 1, r = -1;
+  while (lo <= hi) { const m = (lo + hi) >> 1; if (sp[m][0] <= t) { r = m; lo = m + 1; } else hi = m - 1; }
+  if (r < 0) return 0;
+  const [a, b, lineEnd] = sp[r];
+  if (t <= b) return MOUTH_CYCLE[Math.floor((t - a) * 12) % MOUTH_CYCLE.length];
+  // after the last flap: a held note keeps the mouth open while the voice carries on
+  const nextStart = r + 1 < sp.length ? sp[r + 1][0] : Infinity;
+  if (t < Math.min(nextStart, lineEnd + 0.2) && vocalAt(t) > 0.3) return 1;
+  return 0;
 }
 function blinkAt(t, seed = 0) {
   // blink ~ every 3-5s, 2 frames
