@@ -1,0 +1,42 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Come My Children — stained-glass music video</title>
+<style>
+  @font-face { font-family: 'Cinzel'; font-weight: 500; src: url(fonts/Cinzel.woff); }
+  @font-face { font-family: 'Cinzel Decorative'; font-weight: 700; src: url(fonts/CinzelDecorative.woff); }
+  @font-face { font-family: 'UnifrakturMaguntia'; src: url(fonts/UnifrakturMaguntia.woff); }
+  @font-face { font-family: 'IM Fell English'; font-style: italic; src: url(fonts/IMFellItalic.woff); }
+  html, body { margin: 0; background: #050407; height: 100%; }
+  body { display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: system-ui, sans-serif; color: #ddd; }
+  canvas { display: block; width: min(100vw, 177.78vh); height: auto; aspect-ratio: 16 / 9; background: #000; }
+  #ui { padding: 8px; display: flex; gap: 10px; align-items: center; }
+  #ui[hidden] { display: none; }
+  button { font: inherit; padding: 6px 14px; }
+</style>
+</head>
+<body>
+<canvas id="c" width="1920" height="1080"></canvas>
+<div id="ui" hidden><button id="play">Play</button><span id="time">0:00</span></div>
+<script src="data.js"></script>
+<script src="engine.js"></script>
+<script src="glass.js"></script>
+<script src="figkit.js"></script>
+<script src="figures.js"></script>
+<script src="props.js"></script>
+<script src="dragon.js"></script>
+<script src="world.js"></script>
+<script src="timeline.js"></script>
+
+<script src="scenes_intro.js"></script>
+<script src="scenes_v1.js"></script>
+<script src="scenes_chorus.js"></script>
+<script src="scenes_v2.js"></script>
+<script src="creatures.js"></script>
+<script src="scenes_late.js"></script>
+<script src="scenes_outro.js"></script>
+<script src="shots.js"></script>
+<script src="main.js"></script>
+</body>
+</html>

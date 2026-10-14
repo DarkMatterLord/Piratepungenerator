@@ -1,0 +1,13 @@
+{
+  "name": "come-my-children-video",
+  "private": true,
+  "type": "module",
+  "description": "Stained-glass music video renderer for \"Come My Children\"",
+  "scripts": {
+    "snap": "node tools/render.mjs snap",
+    "frames": "node tools/render.mjs frames"
+  },
+  "devDependencies": {
+    "playwright": "1.56.1"
+  }
+}
