@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reaper of the Void · R1 Chain</title>
+<style>
+  :root {
+    --bg: #0c0b10; --panel: #16141c; --line: #2a2633; --text: #ece8f4; --muted: #a49eb3; --accent: #9b72ff;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.4 Inter, system-ui, sans-serif; }
+  body.render { overflow: hidden; }
+  body.render .ui { display: none; }
+  main { max-width: 1280px; margin: 0 auto; padding: 16px; }
+  .stage { position: relative; width: 100%; aspect-ratio: 16 / 9; background: #000; border-radius: 8px; overflow: hidden; }
+  body.render .stage { border-radius: 0; }
+  canvas { width: 100%; height: 100%; display: block; }
+  .bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 12px; padding: 10px 12px;
+         background: var(--panel); border: 1px solid var(--line); border-radius: 8px; }
+  button, select { background: #221f2a; color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; font: inherit; cursor: pointer; }
+  button:hover { border-color: var(--accent); }
+  input[type=range] { flex: 1 1 240px; accent-color: var(--accent); }
+  label { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); cursor: pointer; }
+  .time { font-family: "DejaVu Sans Mono", ui-monospace, monospace; color: var(--muted); min-width: 150px; text-align: right; }
+  h1 { font-size: 18px; margin: 4px 0 2px; font-weight: 600; }
+  p.sub { margin: 0 0 12px; color: var(--muted); }
+  table { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 13px; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+  th { color: var(--muted); font-weight: 500; }
+  td.num { font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body>
+<main>
+  <div class="ui">
+    <h1>Asriel Dreemurr · Reaper of the Void</h1>
+    <p class="sub">R1 chain animation reference: low horizontal reap → rising reverse hook → advancing waist hook → overhead diagonal reap. Rendered live from code.</p>
+  </div>
+  <div class="stage"><canvas id="cv" width="1920" height="1080"></canvas></div>
+  <div class="ui bar">
+    <button id="play">Pause</button>
+    <button id="prev" title="Previous frame (←)">◀ 1f</button>
+    <button id="next" title="Next frame (→)">1f ▶</button>
+    <input id="scrub" type="range" min="0" max="480" value="0">
+    <span class="time" id="time">F 000 · 0.00 s</span>
+    <select id="speed"><option value="1">1×</option><option value="0.5">0.5×</option><option value="0.25">0.25×</option></select>
+    <label><input type="checkbox" id="hud" checked> Annotations</label>
+    <label><input type="checkbox" id="skel"> Skeleton</label>
+    <label><input type="checkbox" id="trail" checked> Trail</label>
+  </div>
+  <div class="ui"><table id="fd"></table></div>
+</main>
+<script src="src/reaper_anim.js"></script>
+<script>
+  const A = window.ReaperAnim;
+  const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+  // Hook used by tools/render_video.js for frame-exact offline rendering.
+  window.renderAt = (t, opts) => { A.renderFrame(ctx, t, opts || {}); };
+  if (new URLSearchParams(location.search).has('render')) {
+    document.body.classList.add('render');
+  } else {
+    const $ = id => document.getElementById(id);
+    const N = A.DURATION * A.FPS;
+    let t = 0, playing = true, last = performance.now();
+    const draw = () => {
+      A.renderFrame(ctx, t, { hud: $('hud').checked, skeleton: $('skel').checked, trail: $('trail').checked });
+      const f = Math.round(t * A.FPS);
+      $('scrub').value = f;
+      $('time').textContent = `F ${String(f).padStart(3, '0')} · ${t.toFixed(2)} s`;
+    };
+    const loop = now => {
+      const dt = Math.min(0.05, (now - last) / 1000); last = now;
+      if (playing) { t += dt * parseFloat($('speed').value); if (t > A.DURATION) t = 0; }
+      draw();
+      requestAnimationFrame(loop);
+    };
+    const step = d => { playing = false; $('play').textContent = 'Play'; t = Math.max(0, Math.min(A.DURATION, (Math.round(t * A.FPS) + d) / A.FPS)); };
+    $('play').onclick = () => { playing = !playing; $('play').textContent = playing ? 'Pause' : 'Play'; };
+    $('prev').onclick = () => step(-1);
+    $('next').onclick = () => step(1);
+    $('scrub').oninput = e => { playing = false; $('play').textContent = 'Play'; t = e.target.value / A.FPS; };
+    addEventListener('keydown', e => {
+      if (e.code === 'Space') { e.preventDefault(); $('play').click(); }
+      if (e.code === 'ArrowLeft') step(-1);
+      if (e.code === 'ArrowRight') step(1);
+    });
+    $('scrub').max = N;
+    const fd = A.frameData();
+    $('fd').innerHTML = '<tr><th>Input</th><th>Move</th><th>Startup (f)</th><th>Active (f)</th><th>Recovery (f)</th><th>Peak blade speed</th></tr>' +
+      fd.moves.filter(m => m.a0 !== undefined).map(m =>
+        `<tr><td>${m.tag}</td><td>${m.name}</td><td class="num">${m.startup}</td><td class="num">${m.active}</td><td class="num">${m.recovery}</td><td class="num">${m.peakSpeed.toFixed(1)} m/s</td></tr>`).join('');
+    requestAnimationFrame(loop);
+  }
+</script>
+</body>
+</html>
