@@ -75,6 +75,23 @@
     g.fillRect(0, y0 + (bandH - h) / 2 - 4, W, 4); g.fillRect(0, y0 + (bandH + h) / 2, W, 4);
   };
 
+  // a raven that glides in, lands with a bounce and settles (pos = landing point)
+  NM.landingRaven = function (g, t, lt, x, y, s, o = {}) {
+    const t0 = o.t0 ?? 0.3, t1 = o.t1 ?? 1.2, dir = o.dir ?? -1;
+    const k = clamp((lt - t0) / (t1 - t0));
+    if (k <= 0) return;
+    if (k < 1) {
+      const e = ease.outCubic(k), sx = x - dir * 900 * (1 - e), sy = y - 320 * (1 - e) * (1 - e) - Math.sin(k * Math.PI) * 60;
+      NM.raven(g, sx, sy, s, lt * 16, dir, '#07050a');
+    } else {
+      const land = NM.spring(lt, t1, 14, 6), bob = (1 - land) * 10;
+      g.save(); g.translate(x, y + bob); g.scale(1, 0.85 + 0.15 * land);
+      NM.raven(g, 0, 0, s, -1.2 + Math.sin(lt * 3) * 0.08, dir, '#07050a');
+      g.restore();
+      if (lt - t1 < 0.3) NM.particles(g, lt - t1, { n: 10, seed: 17, kind: 'dot', x: x - 60, y: y - 10, w: 120, h: 20, vy: -60, size: [2, 4], color: '#2a2030', alpha: 1 - (lt - t1) / 0.3 });
+    }
+  };
+
   // storm sky preset
   NM.stormSky = function (g, t, flash = 0) {
     NM.paintSky(g, t, { top: '#05060c', mid: '#1a1e30', low: '#3a3a52', stars: 0, clouds: 0.95, cloudDark: '#0c0e18', cloudLight: '#8a90b8', speed: 60, flash });
@@ -120,7 +137,12 @@
   };
   NM.shot(0, 5.8, (g, S) => {
     const t = S.t, lt = S.lt;
+    const crane = ease.inOutSine(clamp(lt / 5.8));
+    g.save(); g.translate(0, lerp(-40, 30, crane)); g.translate(W / 2, H / 2); g.scale(1.06 - crane * 0.03, 1.06 - crane * 0.03); g.translate(-W / 2, -H / 2);
     NM.titleArt(g, t, lt, false);
+    NM.flock(g, lt - 0.6, 3, 7, 1700, 300, -260, 0.9, '#0a0408');
+    g.restore();
+    if (t > 4.75 && t < 5.1) { const st = NM.strikeAt(t, [4.8], 0.3); if (st.v > 0.2) NM.bolt(g, 1500, -20, 1560, 520, 7, st.v, { color: '#ff9aa0', w: 1.2 }); }
     S.post.ui = 'none';
     S.post.extraUI = [(u) => {
       const a = range(0.2, 1.8, t) * (1 - range(5.2, 5.6, t));
@@ -175,7 +197,7 @@
     const t = S.t, lt = S.lt;
     NM.paintSky(g, t, { top: '#2a2a34', mid: '#4a4a56', low: '#6a6a74', stars: 0, clouds: 0.9, cloudDark: '#2a2a32', cloudLight: '#9a9aa8', speed: 6 });
     NM.paintRidge(g, 6, 640, 20, 0.002, '#3a3a42', null);
-    const c = NM.cam3({ x: 0, y: 150, z: -300, f: 1100, vy: H * 0.58 });
+    const c = NM.cam3({ x: lerp(-140, 140, ease.inOutSine(lt / 1.6)), y: 150, z: -300 + lt * 60, f: 1100, vy: H * 0.58 });
     NM.groundPlane(g, c, { far: '#3a3a40', mid: '#24242a', near: '#101014', grass: 0 });
     for (let i = 0; i < 14; i++) { const p = NM.P3(c, (hash1(i) - 0.5) * 4000, 0, 1400 + hash1(i * 3) * 2000); NM.paintGrave(g, p.x, p.y, 80 * p.k, 140 * p.k, i % 5, { fog: 0.7, fogCol: '#5a5a64' }); }
     const gp = NM.P3(c, 60, 0, 900);
@@ -271,11 +293,17 @@
   // 14.70 – 17.90 she kneels at his grave; candles ignite one by one
   NM.shot(14.7, 17.9, (g, S) => {
     const t = S.t, lt = S.lt;
-    const c = NM.cam3({ x: -60, y: 140, z: 1000 - lt * 30, f: 1100, vy: H * 0.5 });
+    const arc = ease.inOutSine(clamp(lt / 3.2));
+    const c = NM.cam3({ x: lerp(-260, 60, arc), y: lerp(170, 130, arc), z: 960 + arc * 120, f: 1100, vy: H * 0.5 });
+    // reach (anticipation), place the rose, settle back with a little overshoot
+    const reach = range(0.25, 0.75, lt), place = NM.spring(lt, 1.0, 8, 5);
+    const armA = 0.9 + reach * 0.7 - place * 0.75, bow = 0.12 + reach * 0.2 + (1 - Math.min(1, place)) * 0.05;
     gy(g, t, c, { rose: lt > 1.0, candles: (i) => clamp((t - 15.1 - i * 0.24) * 5), atGrave: (q, p) => {
-      NM.withRim(q, (r) => NM.figIsolde(r, p.x - 230 * p.k, p.y + 30 * p.k, 560 * p.k, { dir: 1, kneel: 1, wind: 0.4, armF: [1.2 - range(0.6, 1.2, lt) * 0.4, 0.4], armB: [0.6, 0.5], expr: 'tender', headTilt: 0.18, yaw: 0.4 }, t), '#d8c8ff', 1, -0.5, 4, 0.7);
+      NM.withRim(q, (r) => NM.figIsolde(r, p.x - 230 * p.k + reach * 20 * p.k, p.y + 30 * p.k, 560 * p.k, { dir: 1, kneel: 1, lean: reach * 0.25 - place * 0.12, wind: 0.4, armF: [armA, 0.4 - reach * 0.2], armB: [0.6, 0.5], expr: lt > 1.6 ? 'sad' : 'tender', headTilt: bow, yaw: 0.4 }, t), '#d8c8ff', 1, -0.5, 4, 0.7);
       NM.lantern(q, p.x - 400 * p.k, p.y - 10 * p.k, p.k * 1.2, t);
+      NM.landingRaven(q, t, lt, p.x + 24 * p.k, p.y - 182 * p.k, 1.6 * p.k, { t0: 1.3, t1: 2.2, dir: -1 });
     } });
+    NM.particles(g, t, { n: 50, seed: 19, kind: 'dot', vx: 4, vy: -14, drift: 30, size: [1.5, 3], color: '#ffd8a8', alpha: 0.35, twinkle: 2 });
     S.post.grade = { shadow: '#0c0818', light: '#ffc89a', amount: 0.35 };
   }, { name: 'v1-candles' });
 
@@ -283,30 +311,40 @@
   NM.shot(17.9, 20.9, (g, S) => {
     const t = S.t, lt = S.lt;
     const k = ease.inOutSine(clamp((t - 18.0) / 2.6));
-    const c = NM.cam3({ x: 0, y: 520, z: 600 - lt * 40, f: 1000, vy: H * 0.3 });
+    const orbit = ease.inOutSine(clamp(lt / 3));
+    const c = NM.cam3({ x: Math.sin(orbit * 1.6 - 0.8) * 340, y: lerp(560, 400, orbit), z: 560 - lt * 50, f: 1000, vy: H * 0.32 });
+    const crouch = range(0.0, 0.35, lt) * (1 - range(0.35, 0.5, lt));     // anticipation
+    const fling = NM.spring(lt, 0.42, 7, 3.2);                             // arms thrown up, overshoot, settle
+    const armA = lerp(0.6, 2.45, fling), sw = Math.sin(t * 7) * 0.05 * k;
     gy(g, t, c, { rose: true, sigil: k, candles: () => 1, atGrave: (q, p) => {
-      NM.withRim(q, (r) => NM.figIsolde(r, p.x - 380 * p.k, p.y + 60 * p.k, 680 * p.k, { dir: 1, wind: 1 + k, armF: [2.4, 0.4], armB: [2.2, 0.3], expr: 'crazed', glow: k, yaw: 0.3, headTilt: -0.15 }, t), '#ff4a5a', 1, -0.3, 5, 0.6 + k * 0.3);
+      NM.withRim(q, (r) => NM.figIsolde(r, p.x - 380 * p.k, p.y + 60 * p.k, 680 * p.k, { dir: 1, wind: 1 + k * 2.2, twirl: k * 0.4, lean: crouch * 0.35 - fling * 0.08, armF: [armA + sw, 0.4 - crouch * 0.3], armB: [armA - 0.2 - sw, 0.3], expr: lt < 0.4 ? 'cold' : 'crazed', glow: k, yaw: 0.3, headTilt: -0.15 - fling * 0.12 + crouch * 0.25 }, t), '#ff4a5a', 1, -0.3, 5, 0.6 + k * 0.3);
+      // embers spiralling into the circle
+      for (let i = 0; i < 40; i++) { const a = i * 2.4 + t * (1.5 + (i % 3) * 0.4), rr = (1 - ((t * 0.4 + i * 0.137) % 1)) * 420 * p.k; glow(q, p.x + Math.cos(a) * rr, p.y + Math.sin(a) * rr * 0.32 - 20 * p.k, 8 * p.k, '#ff5a6a', 0.7 * k); }
     } });
     glow(g, W / 2, H * 0.62, 800, '#ff2040', 0.25 * k);
-    S.post.shake = t > 20.3 ? 0.4 : 0;
+    S.post.shake = 0.15 + k * 0.5 + NM.impact(lt, 0.45, 0.35) * 1.2;
     S.post.grade = { shadow: '#14060c', light: '#ff8a8a', amount: 0.3 + 0.2 * k };
   }, { name: 'v1-sigil' });
 
   // 20.90 – 23.60 his soul rises and the crimson chain binds it
   NM.shot(20.9, 23.6, (g, S) => {
     const t = S.t, lt = S.lt;
-    const rise = ease.outCubic(clamp(lt / 1.3));
-    const pull = ease.inOutCubic(clamp((lt - 1.5) / 1.0));
-    const c = NM.cam3({ x: 0, y: 200, z: 700, f: 1100, vy: H * 0.5 });
+    const ta = lt - Math.min(Math.max(0, lt - 1.45), 0.1);          // hit-stop on the snap
+    const rise = ease.outCubic(clamp(ta / 1.3));
+    const pull = NM.spring(ta, 1.45, 10, 4);
+    const recoil = NM.spring(ta, 1.45, 12, 6) * (1 - clamp((ta - 1.45) / 1.2));
+    const c = NM.cam3({ x: 0, y: 200, z: 700 + NM.impact(lt, 1.45, 0.5) * 40 + lt * 20, f: 1100, vy: H * 0.5 });
     gy(g, t, c, { rose: true, sigil: 1, open: 0.6, candles: () => 1, atGrave: (q, p) => {
       let hand = null;
-      NM.withRim(q, (r) => { hand = NM.figIsolde(r, p.x - 420 * p.k, p.y + 80 * p.k, 700 * p.k, { dir: 1, wind: 1, armF: [1.7, 0.1], armB: [0.5, 0.4], expr: 'smirk', glow: 0.8, yaw: 0.35 }, t); }, '#ff4a5a', 1, -0.4, 4, 0.7);
-      const gx = p.x + Math.sin(t * 4) * 30 * p.k * (1 - pull) - pull * 120 * p.k, gyy = p.y - rise * 120 * p.k + pull * 40 * p.k;
+      NM.withRim(q, (r) => { hand = NM.figIsolde(r, p.x - 420 * p.k, p.y + 80 * p.k, 700 * p.k, { dir: 1, wind: 1 + pull, lean: -0.25 * recoil, armF: [1.7 - 0.5 * recoil, 0.1 + 0.6 * recoil], armB: [0.5, 0.4], expr: ta > 1.45 ? 'crazed' : 'smirk', glow: 0.8 + recoil * 0.4, yaw: 0.35 }, t); }, '#ff4a5a', 1, -0.4, 4, 0.7);
+      const writhe = (1 - Math.min(1, pull)) * (Math.sin(t * 5) * 34 + Math.sin(t * 11.3) * 10);
+      const gx = p.x + writhe * p.k - pull * 140 * p.k, gyy = p.y - rise * 120 * p.k + pull * 40 * p.k;
       NM.figGhost(q, gx, gyy, 420 * p.k, t, { alpha: 0.9, expr: lt > 1.6 ? 'pain' : 'sleep' });
       const reach = clamp((lt - 0.8) / 0.6);
       if (reach > 0) NM.chain(q, [hand.hand[0], hand.hand[1], (hand.hand[0] + gx) / 2, Math.min(hand.hand[1], gyy - 240 * p.k) - 80 * p.k * (1 - pull), gx, gyy - 240 * p.k], 26 * p.k, { color: '#ff3a52', thick: 5 * p.k, reveal: reach, glow: 0.9, glowColor: '#ff2040' });
     } });
-    S.post.shake = lt > 1.5 && lt < 2.5 ? 0.6 : 0;
+    S.post.shake = NM.impact(lt, 1.45, 0.6) * 1.6 + 0.1;
+    if (lt > 1.45 && lt < 1.6) { S.post.flash = 0.45; S.post.flashColor = '#ff2040'; }
     S.post.grade = { shadow: '#0c0818', light: '#ff9aa8', amount: 0.35 };
   }, { name: 'v1-soul' });
 
@@ -324,22 +362,24 @@
       NM.figMourner(g, x, gyY + 40 + dy, 360, t, 30 + i, { umbrella: false, dir: turned ? 1 : (i % 2 ? 1 : -1), color: '#0c0a10', hi: '#4a3a30' });
     });
     g.restore();
-    const ix = lerp(2300, 900, lt / 3);
-    NM.withRim(g, (q) => NM.figIsolde(q, ix, H + 300, 1300, { dir: -1, wind: 0.6, armF: [0.3, 0.3], expr: 'cold', yaw: 0.6 }, t, { colors: { dress: '#050307', dressMid: '#0e0a12', dressHi: '#1e1828' } }), '#ff5a6a', -1, -0.3, 6, 0.8);
+    const ix = lerp(2300, 900, lt / 3), step = t * 3.6;
+    const bob = Math.abs(Math.sin(step)) * 26;
+    NM.withRim(g, (q) => NM.figIsolde(q, ix, H + 300 - bob, 1300, { dir: -1, wind: 0.6 + Math.abs(Math.sin(step)) * 0.5, lean: 0.06 + Math.sin(step * 2) * 0.02, armF: [0.3 + Math.sin(step) * 0.18, 0.3], armB: [0.2 - Math.sin(step) * 0.15, 0.3], expr: 'cold', yaw: 0.6 }, t, { colors: { dress: '#050307', dressMid: '#0e0a12', dressHi: '#1e1828' } }), '#ff5a6a', -1, -0.3, 6, 0.8);
     S.post.grade = { shadow: '#0c0810', light: '#ffc890', amount: 0.35 };
   }, { name: 'p1-village', in: { type: 'black', dur: 0.3 } });
 
   NM.shot(26.6, 29.6, (g, S) => {
     const t = S.t, lt = S.lt;
-    const c = NM.cam3({ x: -200, y: 260, z: 820, f: 1100, vy: H * 0.48 });
+    const c = NM.cam3({ x: -200 + lt * 50, y: 260, z: 820 + lt * 20, f: 1100, vy: H * 0.48 });
     gy(g, t, c, { rose: true, sigil: 1, candles: () => 1, gyOpts: { fog: 0.2 } });
-    const b = NM.beat(t, 5);
+    const b = NM.beat(t, 5), haul = NM.beat(t, 3.2);
     glow(g, 760, 600, 600 + b * 200, '#ff2040', 0.35 + b * 0.25);
     NM.particles(g, t, { n: 70, seed: 12, kind: 'glow', x: 300, y: 200, w: 1000, h: 900, vy: -120, drift: 60, size: [1, 2.5], color: '#ff3a52', alpha: 0.8, mode: 'lighter' });
-    NM.withRim(g, (q) => NM.figIsolde(q, 760, 1760, 1900, { dir: 1, wind: 1.6 + b, armF: [1.0, 0.8], armB: [0.8, 0.9], expr: 'hungry', glow: 0.8 + b * 0.4, yaw: 0.3, headTilt: -0.08 }, t), '#ff4a5a', 1, -0.3, 7, 0.9);
-    NM.figGhost(g, 1350, 900, 900, t, { alpha: 0.7, expr: 'sleep' });
-    NM.chain(g, [930, 1000, 1150, 900, 1330, 420], 40, { color: '#ff3a52', thick: 7, glow: 0.8, offset: t * 40 });
-    S.post.shake = b > 0.6 ? 0.3 : 0;
+    NM.withRim(g, (q) => NM.figIsolde(q, 760 - haul * 30, 1760, 1900, { dir: 1, wind: 1.6 + b, lean: -0.12 * haul, armF: [1.0 - haul * 0.45, 0.8 + haul * 0.6], armB: [0.8 - haul * 0.3, 0.9], expr: 'hungry', glow: 0.8 + b * 0.4, yaw: 0.3, headTilt: -0.08 - haul * 0.1 }, t), '#ff4a5a', 1, -0.3, 7, 0.9);
+    const gx = 1350 - haul * 120, gyy = 900 + haul * 30;
+    NM.figGhost(g, gx, gyy, 900, t, { alpha: 0.7, expr: haul > 0.4 ? 'pain' : 'sleep' });
+    NM.chain(g, [930 - haul * 60, 1000, 1150, 900 - (1 - haul) * 60, gx - 20, gyy - 480], 40, { color: '#ff3a52', thick: 7, glow: 0.8 + haul * 0.4, offset: t * 40 });
+    S.post.shake = haul * 0.9;
     S.post.grade = { shadow: '#14040a', light: '#ff8a8a', amount: 0.4 };
   }, { name: 'p1-strong', paint: { r: 5 } });
 

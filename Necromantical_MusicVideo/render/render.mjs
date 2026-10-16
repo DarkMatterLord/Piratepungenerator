@@ -1,5 +1,5 @@
 // Renders frames of index.html with headless Chromium (Playwright) into a JPEG sequence.
-//   node render/render.mjs --out frames [--from 0] [--to 188.76] [--workers 4] [--q 0.93] [--lyrics 0]
+//   node render/render.mjs --out frames [--from 0] [--to 188.76] [--workers 4] [--q 0.93] [--lyrics 0] [--style paint]
 //   node render/render.mjs --stills 12.5,36.2,80 --out stills        (PNG stills for review)
 import { chromium } from 'playwright';
 import http from 'node:http';
@@ -29,7 +29,7 @@ const server = http.createServer((req, res) => {
   fs.createReadStream(p).pipe(res);
 });
 await new Promise((r) => server.listen(0, '127.0.0.1', r));
-const url = `http://127.0.0.1:${server.address().port}/index.html?render=1&lyrics=${lyrics}${args.test ? '&test=' + encodeURIComponent(args.test) : ''}`;
+const url = `http://127.0.0.1:${server.address().port}/index.html?render=1&lyrics=${lyrics}${args.style === 'paint' ? '&style=paint' : ''}${args.test ? '&test=' + encodeURIComponent(args.test) : ''}`;
 
 const browser = await chromium.launch({ args: ['--disable-gpu', '--disable-dev-shm-usage', '--js-flags=--max-old-space-size=2048'] });
 

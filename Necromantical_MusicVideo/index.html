@@ -28,9 +28,11 @@
   <audio id="audio" src="audio/Necromantical.mp3" preload="auto"></audio>
 </div>
 <script src="data/timing.js"></script>
+<script src="data/palettes.js" onerror="void 0"></script>
 <script src="src/core.js"></script>
 <script src="src/assets.js"></script>
 <script src="src/paint.js"></script>
+<script src="src/pixel.js"></script>
 <script src="src/draw.js"></script>
 <script src="src/portrait.js"></script>
 <script src="src/rig.js"></script>
@@ -56,7 +58,8 @@
   const cvs = document.getElementById('c');
   window.NM_READY = (async () => {
     const fams = ['40px "IM Fell English"', 'italic 40px "IM Fell English"', '40px "IM Fell English SC"',
-      '40px "UnifrakturMaguntia"', '40px "Cinzel"', '700 40px "Cinzel"', '40px "Cinzel Decorative"', '700 40px "Cinzel Decorative"'];
+      '40px "UnifrakturMaguntia"', '40px "Cinzel"', '700 40px "Cinzel"', '40px "Cinzel Decorative"', '700 40px "Cinzel Decorative"',
+      '16px "DotGothic16"', '16px "Pixelify Sans"', '700 16px "Pixelify Sans"', '16px "VT323"', '8px "Silkscreen"'];
     await Promise.all(fams.map((f) => document.fonts.load(f)));
     NM.buildAssets();
     NM.buildPaintTextures();
@@ -68,6 +71,21 @@
   // used by render/render.mjs
   window.renderFrameJPEG = async (t, q) => { await window.NM_READY; NM.renderFrame(t); return cvs.toDataURL('image/jpeg', q); };
   window.renderFramePNG = async (t) => { await window.NM_READY; NM.renderFrame(t); return cvs.toDataURL('image/png'); };
+  // used by render/palettes.mjs: k-means palette for one shot from sample times
+  window.shotPalette = async (times, K) => {
+    await window.NM_READY;
+    const acc = [];
+    let name = null;
+    for (const t of times) {
+      const r = NM.renderStaged(t);
+      if (!r) continue;
+      name = r.name;
+      const d = r.cv.getContext('2d').getImageData(0, 0, r.cv.width, r.cv.height).data;
+      for (let o = 0; o < d.length; o += 4 * 5) acc.push(d[o], d[o + 1], d[o + 2]);
+    }
+    return { name, pal: NM.kmeansPalette(new Float64Array(acc), K) };
+  };
+  window.shotList = async () => { await window.NM_READY; return NM.SHOTS.map((s) => ({ name: s.name, start: s.start, end: s.end })); };
 
   if (!RENDER) {
     const audio = document.getElementById('audio');

@@ -194,16 +194,22 @@
     NM.skyGrad(g, [[0, '#12060c'], [1, '#3a1018']]);
     for (let i = 0; i < 26; i++) { const x = hash1(i * 3) * W, y = hash1(i * 5) * H * 0.85; glow(g, x + Math.sin(t * 0.3 + i) * 20, y, 30 + hash1(i * 7) * 70, i % 3 ? '#ffb060' : '#ff4060', 0.2 + 0.2 * hash1(i * 9)); }
     glow(g, 960, 560, 700, '#7a0e22', 0.4);
-    const drift = lt * 14;
-    const lx = 520 + drift, ix = 1400 - drift;
-    NM.paintLucien(g, lx, 470, 600, lt < 1.6 ? 'pain' : 'sleep', t, { yaw: 0.5, noBlink: true, light: 0.6 });
-    NM.paintIsolde(g, ix, 450, 620, 'hungry', t, { yaw: -0.5, noBlink: true, light: -0.6 });
-    const ax = lx + 0.11 * 600, ay = 470 + 0.3 * 600, bx = ix - 0.11 * 620, by = 450 + 0.3 * 620;
+    const lean = ease.inOutSine(clamp(lt / 3));
+    const z = 1 + lean * 0.07;
+    g.save(); g.translate(960, 640); g.scale(z, z); g.translate(-960, -640);
+    const lx = 520 + lean * 30, ix = 1400 - lean * 70;
+    const surrender = range(1.2, 2.2, lt);
+    NM.paintLucien(g, lx, 470 + surrender * 16, 600, lt < 1.6 ? 'pain' : 'sleep', t, { yaw: 0.5, noBlink: true, light: 0.6, tilt: -0.04 - surrender * 0.12 });
+    NM.paintIsolde(g, ix, 450 + lean * 10, 620, 'hungry', t, { yaw: -0.5, noBlink: true, light: -0.6, tilt: -lean * 0.1 });
+    g.restore();
+    const sx = (x) => 960 + (x - 960) * z, sy = (y) => 640 + (y - 640) * z;
+    const ax = sx(lx + 0.11 * 600), ay = sy(470 + surrender * 16 + 0.3 * 600), bx = sx(ix - 0.11 * 620), by = sy(450 + lean * 10 + 0.3 * 620);
+    const pulse = 1 + NM.beat(t, 5) * 0.8;
     g.save(); g.globalCompositeOperation = 'screen';
-    for (let i = 0; i < 16; i++) {
-      const k = (lt * 0.7 + i / 16) % 1;
+    for (let i = 0; i < 18; i++) {
+      const k = (lt * 0.8 + i / 18) % 1;
       const x = lerp(ax, bx, k), y = lerp(ay, by, k) - Math.sin(k * Math.PI) * 110 + Math.sin(t * 4 + i) * 12;
-      glow(g, x, y, 26 + 34 * Math.sin(k * Math.PI), '#b9e6ff', 0.5 * Math.sin(k * Math.PI));
+      glow(g, x, y, (26 + 34 * Math.sin(k * Math.PI)) * pulse, '#b9e6ff', 0.5 * Math.sin(k * Math.PI));
     }
     g.restore();
     S.post.grade = { shadow: '#14040a', light: '#ffc0c8', amount: 0.3 };
@@ -347,14 +353,16 @@
   // 101.45 – 104.60 "To love is sweet, to own divine" — the throne
   NM.shot(101.45, 104.6, (g, S) => {
     const t = S.t, lt = S.lt;
-    const z = 1 + lt * 0.025;
-    g.save(); g.translate(W / 2, 600); g.scale(z, z); g.translate(-W / 2, -600);
+    const dolly = ease.inOutSine(clamp(lt / 3.15));
+    const z = 1.0 + dolly * 0.09;
+    g.save(); g.translate(W / 2 + dolly * 60, 600); g.scale(z, z); g.translate(-W / 2, -600);
     const th = throneRoom(g, t, { x: W / 2, y: 900, k: 1.05 });
-    const breathe = Math.sin(t * 1.5) * 0.04;
+    const stroke = Math.sin(lt * 2.4), nuzzle = Math.sin(lt * 2.4 - 0.7);
     NM.withRim(g, (q) => {
-      NM.figIsolde(q, th.x - 10, 900, 640, { dir: 1, sit: 1, armF: [1.75 + breathe, 0.2], armB: [0.6, 0.6], expr: lt < 1.6 ? 'tender' : 'smirk', yaw: 0.4, wind: 0.1, headTilt: 0.1 }, t);
-      NM.figLucien(q, th.x + 300, 975, 640, { dir: -1, kneel: 1, lean: 0.5, headTilt: 0.65, armF: [1.2, 0.8], armB: [0.4, 0.5], expr: 'sleep', yaw: 0.3 }, t);
+      NM.figIsolde(q, th.x - 10, 900, 640, { dir: 1, sit: 1, armF: [1.72 + stroke * 0.16, 0.25 + stroke * 0.2], armB: [0.6, 0.6], expr: lt < 1.6 ? 'tender' : 'smirk', yaw: 0.4, wind: 0.15, headTilt: 0.12 + nuzzle * 0.04, lean: 0.06 + stroke * 0.03 }, t);
+      NM.figLucien(q, th.x + 300, 975, 640, { dir: -1, kneel: 1, lean: 0.5 + nuzzle * 0.04, headTilt: 0.65 + nuzzle * 0.07, armF: [1.2, 0.8], armB: [0.4, 0.5], expr: 'sleep', yaw: 0.3 }, t);
     }, '#ff9a8a', 0, -1, 4, 0.6);
+    NM.particles(g, t, { n: 70, seed: 64, kind: 'dot', x: 600, y: 150, w: 720, h: 760, vx: 6, vy: -10, drift: 26, size: [1.5, 3], color: '#ffd8c8', alpha: 0.45, twinkle: 2 });
     g.restore();
     S.post.grade = { shadow: '#14040a', light: '#ffb8a0', amount: 0.35 };
   }, { name: 'in-throne', in: { type: 'black', dur: 0.5 } });
@@ -407,14 +415,22 @@
   NM.shot(107.7, 110.7, (g, S) => {
     const t = S.t, lt = S.lt;
     const th = throneRoom(g, t, { x: 640, y: 900, k: 0.95, wx: 960 });
-    const gest = Math.sin(lt * 2.2) * 0.5, gest2 = Math.sin((lt - 0.2) * 2.2) * 0.5;
+    const CMD = [
+      { h: [1.6, 0.2], lF: [1.4, 0.3], lB: [1.2, 0.4], lean: 0.1, x: 0, legs: [0.2, -0.1] },
+      { h: [2.5, 0.1], lF: [2.5, 0.2], lB: [2.3, 0.3], lean: -0.15, x: -40, legs: [0.5, -0.4] },
+      { h: [1.2, -0.3], lF: [0.6, 0.2], lB: [0.4, 0.3], lean: 0.35, x: 30, legs: [-0.1, 0.2] },
+      { h: [2.0, 0.6], lF: [1.9, -0.6], lB: [1.6, 0.6], lean: 0.0, x: -70, legs: [0.4, -0.2] },
+    ];
+    const ci = NM.poseAt(t, NM.T.beats, CMD, 0, 16, 8), cl = NM.poseAt(t, NM.T.beats, CMD, 0.16, 9, 4);
+    const snap = NM.beat(t, 8);
     let iso, luc;
     NM.withRim(g, (q) => {
-      iso = NM.figIsolde(q, th.x - 10, 900, 600, { dir: 1, sit: 1, armF: [1.9 + gest, 0.2 + gest * 0.4], armB: [0.6, 0.6], expr: 'smirk', yaw: 0.45, glow: 0.8, wind: 0.1 }, t);
-      luc = NM.figLucien(q, 1300 + Math.sin(lt * 1.1) * 40, 930, 720, { dir: -1, lean: 0.1 + gest2 * 0.2, armF: [1.6 + gest2, 0.3 - gest2 * 0.5], armB: [1.3 - gest2, 0.4], legF: [0.2 + gest2 * 0.3, -0.1], legB: [-0.15, 0.2], headTilt: 0.2 - gest2 * 0.3, expr: lt < 1.5 ? 'pain' : 'hollow', yaw: 0.35 }, t);
+      iso = NM.figIsolde(q, th.x - 10, 900, 600, { dir: 1, sit: 1, armF: ci.h, armB: [0.6, 0.6], expr: 'smirk', yaw: 0.45, glow: 0.6 + snap * 0.6, wind: 0.1 + snap * 0.5, lean: snap * 0.05 }, t);
+      luc = NM.figLucien(q, 1300 + cl.x, 930, 720, { dir: -1, lean: cl.lean, armF: cl.lF, armB: cl.lB, legF: cl.legs, legB: [-0.15, 0.2], headTilt: 0.2 - cl.lean * 0.6, expr: lt < 1.5 ? 'pain' : 'hollow', yaw: 0.35, idle: 0.3 }, t);
     }, '#ff9a8a', 0, -1, 4, 0.6);
     const reveal = clamp(lt / 0.5);
-    for (const tgt of [luc.hand, luc.hand2, luc.head]) NM.chain(g, [iso.hand[0], iso.hand[1], (iso.hand[0] + tgt[0]) / 2, Math.min(iso.hand[1], tgt[1]) - 120, tgt[0], tgt[1]], 16, { color: '#ff3a52', thick: 3, reveal, glow: 0.7 });
+    for (const tgt of [luc.hand, luc.hand2, luc.head]) NM.chain(g, [iso.hand[0], iso.hand[1], (iso.hand[0] + tgt[0]) / 2, Math.min(iso.hand[1], tgt[1]) - 120 * (1 - snap * 0.85), tgt[0], tgt[1]], 16, { color: '#ff3a52', thick: 3, reveal, glow: 0.5 + snap * 0.6 });
+    S.post.shake = snap * 0.3;
     g.save(); g.globalCompositeOperation = 'screen';
     for (let i = 0; i < 9; i++) { const k = (t * 0.6 + i / 9) % 1; glow(g, lerp(luc.head[0] - 30, iso.head[0] + 30, k), lerp(luc.head[1] + 50, iso.head[1] + 40, k) - Math.sin(k * Math.PI) * 80, 24, '#f2ece6', 0.5 * Math.sin(k * Math.PI)); }
     g.restore();
@@ -427,7 +443,11 @@
     NM.skyGrad(g, [[0, '#0e0709'], [1, '#35151b']]);
     const b = NM.beat(t, 7);
     glow(g, 960, 560, 700, '#ff2040', 0.2 + b * 0.3);
-    const sw = Math.sin(t * 1.4) * 0.04;
+    const bi = NM.lastIndexBefore(NM.T.beats, t), kb = bi >= 0 ? t - NM.T.beats[bi] : 1;
+    const kick = Math.exp(-kb * 3) * Math.sin(kb * 9) * (bi % 2 ? 1 : -1);
+    const sw = Math.sin(t * 1.4) * 0.04 + kick * 0.035;
+    const push = 1 + lt * 0.035;
+    g.save(); g.translate(960, 560); g.scale(push, push); g.translate(-960, -560);
     g.save(); g.translate(960, -40); g.rotate(sw);
     const cy = 600, R = 300;
     NM.chain(g, [0, 0, 0, cy - R - 40], 26, { color: '#8a6a30', thick: 6, highlight: '#f0d090' });
@@ -435,11 +455,13 @@
     for (let k = -6; k <= 6; k++) bar(k * 48 + 24, true);
     g.strokeStyle = '#5a4018'; g.lineWidth = 8; g.beginPath(); g.arc(0, cy, R, Math.PI, 0); g.stroke();
     // the heart, beating
-    const hs = 1.35 * (1 + b * 0.1);
-    glow(g, 0, cy + 70, 320, '#ff2040', 0.15 + b * 0.25);
-    g.save(); g.translate(0, cy + 70); paintHeart(g, hs, t); g.restore();
-    NM.chain(g, [-R + 20, cy - 20, 0, cy + 120, R - 20, cy - 20], 26, { color: '#ff3a52', thick: 5, glow: 0.7 });
-    NM.chain(g, [-R + 30, cy + 200, 0, cy + 10, R - 30, cy + 200], 26, { color: '#ff3a52', thick: 5, glow: 0.7 });
+    const hs = 1.35;
+    softShade(g, 0, cy + 60, 300, 280, '#000000', 0.75);
+    glow(g, 0, cy + 70, 260, '#ff2040', 0.08 + b * 0.18);
+    g.save(); g.translate(0, cy + 70); g.scale(1 + b * 0.14, 1 + b * 0.08 - Math.max(0, Math.sin(kb * 14)) * 0.04 * Math.exp(-kb * 6)); paintHeart(g, hs, t); g.restore();
+    for (let i = 0; i < 6; i++) { const k = kb * 1.6 - i * 0.02; if (k <= 0 || k > 1) continue; const a = -2.4 + i * 0.35 + (bi % 3) * 0.2; g.fillStyle = '#8a0a1e'; g.beginPath(); g.ellipse(Math.cos(a) * 140 * k * 2, cy + 20 + Math.sin(a) * 120 * k * 2 + 300 * k * k, 7, 10, a, 0, TAU); g.fill(); }
+    NM.chain(g, [-R + 20, cy + 120, 0, cy + 300, R - 20, cy + 120], 26, { color: '#ff3a52', thick: 5, glow: 0.5 });
+    NM.chain(g, [-R + 10, cy - 60, -120, cy + 240, R - 60, cy + 260], 26, { color: '#c4122f', thick: 5, glow: 0.3 });
     for (let k = -6; k <= 6; k++) bar(k * 48, false);
     const rg = g.createLinearGradient(0, cy + 270, 0, cy + 320); rg.addColorStop(0, '#f0d080'); rg.addColorStop(1, '#5a3a14');
     g.fillStyle = rg; g.beginPath(); g.ellipse(0, cy + 290, R + 30, 40, 0, 0, TAU); g.fill();
@@ -448,6 +470,8 @@
     g.restore();
     // blood drips
     for (let i = 0; i < 5; i++) { const k = (t * 0.7 + i * 0.23) % 1; g.fillStyle = '#8a0a1e'; g.beginPath(); g.ellipse(930 + i * 16, 820 + k * 260, 5, 9, 0, 0, TAU); g.fill(); }
+    g.restore();
+    S.post.shake = Math.exp(-kb * 8) * 0.4;
     S.post.grade = { shadow: '#14040a', light: '#ffb0a0', amount: 0.3 };
   }, { name: 'in-heart', in: { type: 'fade', dur: 0.3 } });
 
@@ -457,7 +481,11 @@
   // 113.75 – 116.75 "They call me vile, a villain's creed" — the torch mob climbs the hill
   NM.shot(113.75, 116.75, (g, S) => {
     const t = S.t, lt = S.lt;
+    const pan = lt * 26;
+    g.save(); g.translate(-pan * 0.3, 0);
     NM.manorScene(g, t, { x: 1450, y: 600, scale: 0.55, lit: [1, 4, 7], moonX: 420 });
+    g.restore();
+    g.save(); g.translate(-pan, 0);
     const hill = (x) => 640 + (x / W) * 260 - Math.sin(x * 0.003) * 30;
     g.fillStyle = '#0c0a12'; g.beginPath(); g.moveTo(0, H); for (let x = 0; x <= W; x += 20) g.lineTo(x, hill(x) + 120); g.lineTo(W, H); g.closePath(); g.fill();
     const road = g.createLinearGradient(0, 700, 0, H); road.addColorStop(0, 'rgba(70,56,60,0.6)'); road.addColorStop(1, 'rgba(30,24,28,0.9)');
@@ -465,11 +493,12 @@
     glow(g, 900, 860, 800, '#ff7a2a', 0.3);
     const mob = [];
     for (let i = 0; i < 16; i++) {
-      const f = ((i * 0.13 + lt * 0.05) % 1);
+      const f = ((i * 0.37) % 0.88) + lt * 0.035;
       const x = lerp(260, 1340, f) + (hash1(i * 3) - 0.5) * 220 * (1 - f), y = lerp(1080, 640, f) + (hash1(i * 7) - 0.5) * 40;
       mob.push({ x, y, s: lerp(460, 70, f), i });
     }
     mob.sort((a, b) => a.y - b.y).forEach((m) => NM.figMob(g, m.x, m.y, m.s, t + m.i, 20 + m.i, { dir: 1, tool: m.i % 3 === 2 ? 'fork' : 'torch', rim: '#ff9a4a' }));
+    g.restore();
     NM.particles(g, t, { n: 90, seed: 91, kind: 'dot', x: 0, y: 300, w: W, h: 780, vx: 20, vy: -70, drift: 30, size: [1.2, 3], color: '#ffb060', alpha: 0.7 });
     NM.paintFog(g, t, 560, 300, 0.3, '#5a3a3a', 20);
     S.post.grade = { shadow: '#08060e', light: '#ffb070', amount: 0.35 };

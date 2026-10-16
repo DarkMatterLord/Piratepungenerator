@@ -318,8 +318,11 @@
     glow(g, 960, 440, 700, '#e8e4ec', 0.25);
     for (const x of [300, 1620]) { const bg = g.createLinearGradient(x - 24, 0, x + 24, 0); bg.addColorStop(0, '#08080a'); bg.addColorStop(0.4, '#4a4a54'); bg.addColorStop(1, '#0a0a0c'); g.fillStyle = bg; g.fillRect(x - 24, 0, 48, H); }
     g.fillStyle = '#121216'; g.fillRect(0, 470, W, 30);
-    const sw = Math.sin(t * 1.2) * 14;
+    const hit = 0.85, jolt = NM.impact(lt, hit, 0.5);
+    const sw = Math.sin(t * 1.2) * 14 + jolt * 30 * Math.sin((lt - hit) * 30);
     const CH = { color: '#141418', thick: 9, highlight: '#9a9aa2' };
+    const push = 1 + lt * 0.03;
+    g.save(); g.translate(960, 560); g.scale(push, push); g.translate(-960, -560);
     NM.chain(g, [480, -40, 450 + sw, 360, 560, 820], 44, CH);
     NM.chain(g, [1440, -40, 1470 - sw, 360, 1360, 820], 44, CH);
     NM.chain(g, [-40, 160, 960, 460 + sw, 1960, 180], 44, CH);
@@ -330,15 +333,21 @@
     g.strokeStyle = '#2a4022'; g.lineWidth = 7; g.beginPath(); g.moveTo(954, 480); g.bezierCurveTo(982, 640, 922, 800, 962, H + 20); g.stroke();
     g.fillStyle = '#0e1a0c'; for (const [y, sx] of [[600, 1], [700, -1], [820, 1], [930, -1]]) { const x = 960 + (y - 470) * 0.02 * sx; g.beginPath(); g.moveTo(x + sx * 8, y); g.lineTo(x + sx * 40, y - 22); g.lineTo(x + sx * 8, y - 14); g.fill(); }
     leaf(g, 975, 700, 230, -0.5 + wither * 0.6, '#14200e'); leaf(g, 950, 840, 210, Math.PI + 0.5 - wither * 0.6, '#14200e');
-    bigRose(g, 960, 410, 200, t, wither);
+    const shiver = jolt * 0.08 * Math.sin((lt - hit) * 40);
+    g.save(); g.translate(960, 470); g.rotate(shiver); g.translate(-960, -470); bigRose(g, 960, 410, 200, t, wither); g.restore();
     // chains wrapping the stem, and the padlock
-    NM.chain(g, [760, 560, 960, 660, 1160, 590], 36, CH);
-    NM.chain(g, [1160, 700, 960, 610, 770, 720], 36, CH);
-    const lockK = ease.outBounce ? ease.outBounce(clamp((lt - 0.35) / 0.5)) : ease.outBack(clamp((lt - 0.35) / 0.5));
-    const click = lt > 0.85 && lt < 1.15 ? 1 - (lt - 0.85) / 0.3 : 0;
-    padlock(g, 960, lerp(380, 630, lockK), 170, t, { glow: click * 0.9 });
-    if (click > 0) S.post.shake = 1;
+    NM.chain(g, [760, 560, 960, 660 + jolt * 30, 1160, 590], 36, CH);
+    NM.chain(g, [1160, 700, 960, 610 + jolt * 26, 770, 720], 36, CH);
+    // the lock falls under gravity, slams onto the chains, bounces once and swings to rest
+    let ly, rot = 0;
+    if (lt < hit) { const f = clamp((lt - 0.3) / (hit - 0.3)); ly = lerp(-160, 630, f * f); }
+    else { const k = lt - hit; ly = 630 - Math.abs(Math.sin(k * 11)) * 60 * Math.exp(-k * 6); rot = 0.3 * Math.exp(-k * 2.5) * Math.sin(k * 8); }
+    const click = lt > hit && lt < hit + 0.3 ? 1 - (lt - hit) / 0.3 : 0;
+    g.save(); g.translate(960, ly - 20); g.rotate(rot); g.translate(-960, -(ly - 20)); padlock(g, 960, ly, 170, t, { glow: click * 0.9 }); g.restore();
+    if (lt > hit && lt < hit + 0.5) NM.particles(g, lt - hit, { n: 24, seed: 37, kind: 'dot', x: 860, y: 600, w: 200, h: 40, vx: 0, vy: -160, drift: 120, size: [2, 5], color: '#c8c8d0', alpha: 1 - (lt - hit) / 0.5 });
+    S.post.shake = jolt * 1.6;
     if (wither > 0) NM.particles(g, lt, { n: 22, seed: 91, kind: 'petal', x: 760, y: 300, w: 400, h: 700, vy: 120, drift: 40, size: [9, 15], alpha: wither });
+    g.restore();
     S.post.grade = { shadow: '#18181e', light: '#e8e4f0', amount: 0.3 };
   }, { name: 'c3-rose', in: { type: 'fade', dur: 0.25 } });
 
@@ -453,10 +462,15 @@
     const t = S.t, lt = S.lt;
     NM.skyGrad(g, [[0, '#0c0610'], [1, '#2a1020']]);
     for (let i = 0; i < 22; i++) { const x = hash1(i * 3 + 5) * W, y = hash1(i * 5 + 5) * H * 0.8; glow(g, x + Math.sin(t * 0.3 + i) * 16, y, 30 + hash1(i * 7) * 60, i % 3 ? '#a080c0' : '#ff6080', 0.18 + 0.15 * hash1(i * 9)); }
-    const drift = lt * 10;
-    NM.paintLucien(g, 760 + drift, 480, 660, lt < 1.7 ? 'plead' : 'sleep', t, { yaw: 0.12, noBlink: true, light: 0.6 });
-    NM.paintIsolde(g, 1290 - drift * 1.4, 420, 620, 'smirk', t, { yaw: -0.55, noBlink: true, light: -0.6, tilt: -0.08 });
-    const ax = 1290 - drift * 1.4 - 0.12 * 620, ay = 420 + 0.3 * 620, bx = 760 + drift + 0.34 * 660, by = 480 + 0.06 * 660;
+    const close = ease.inOutSine(clamp(lt / 3.2)), drift = close * 60;
+    const z = 1 + close * 0.06;
+    g.save(); g.translate(1000, 560); g.scale(z, z); g.translate(-1000, -560);
+    const give = range(1.4, 2.6, lt);
+    NM.paintLucien(g, 760 + drift * 0.4, 480 + give * 10, 660, lt < 1.7 ? 'plead' : 'sleep', t, { yaw: 0.12 + give * 0.12, noBlink: true, light: 0.6, tilt: 0.03 + give * 0.08 });
+    NM.paintIsolde(g, 1290 - drift * 1.6, 420 + close * 30, 620, 'smirk', t, { yaw: -0.55, noBlink: true, light: -0.6, tilt: -0.08 - close * 0.08 });
+    g.restore();
+    const zx = (x) => 1000 + (x - 1000) * z, zy = (y) => 560 + (y - 560) * z;
+    const ax = zx(1290 - drift * 1.6 - 0.12 * 620), ay = zy(420 + close * 30 + 0.3 * 620), bx = zx(760 + drift * 0.4 + 0.34 * 660), by = zy(480 + give * 10 + 0.06 * 660);
     g.save(); g.globalCompositeOperation = 'screen';
     for (let i = 0; i < 10; i++) { const k = (lt * 0.8 + i / 10) % 1; glow(g, lerp(ax, bx, k) + Math.sin(t * 5 + i) * 8, lerp(ay, by, k) - Math.sin(k * Math.PI) * 40, 18 + 16 * Math.sin(k * Math.PI), '#ffd0e0', 0.45 * Math.sin(k * Math.PI)); }
     g.restore();
@@ -466,9 +480,9 @@
   // 152.85 – 155.70 "In death's embrace, you're chained right here" — silhouettes before the blood moon
   NM.shot(152.85, 155.7, (g, S) => {
     const t = S.t, lt = S.lt;
-    const z = 1 + lt * 0.03;
-    g.save(); g.translate(W / 2, 640); g.scale(z, z); g.translate(-W / 2, -640);
-    NM.paintSky(g, t, { top: '#0e0408', mid: '#3a0c16', low: '#7a1e2a', moon: { x: 960, y: 440, r: 340, blood: 0.9 }, stars: 0, clouds: 0.6, cloudDark: '#1a0608', cloudLight: '#ff8a8a', speed: 8 });
+    const z = 1 + lt * 0.04;
+    g.save(); g.translate(W / 2 + Math.sin(lt * 0.8) * 40, 640); g.scale(z, z); g.translate(-W / 2, -640);
+    NM.paintSky(g, t, { top: '#0e0408', mid: '#3a0c16', low: '#7a1e2a', moon: { x: 960, y: 440, r: 340, blood: 0.9 }, stars: 0, clouds: 0.6, cloudDark: '#1a0608', cloudLight: '#ff8a8a', speed: 18 });
     NM.paintRidge(g, 6, 900, 22, 0.002, '#12060a', '#ff7a7a');
     NM.silhouette(g, '#0e0508', (q) => { for (const [x, ty] of [[300, 1], [470, 0], [1440, 2], [1620, 1]]) { q.save(); q.translate(x, 905); q.fillRect(-26, -110, 52, 110); if (ty === 1) { q.fillRect(-60, -86, 120, 22); q.fillRect(-12, -150, 24, 150); } q.restore(); } });
     NM.paintTree(g, 120, 960, 900, 11, t, { rim: 'rgba(255,120,120,0.35)', lean: 0.2 });
@@ -478,7 +492,8 @@
     const runs = (front) => { const out = []; let cur = []; for (const p of pts) { if ((p[2] > 0) === front) cur.push(p[0], p[1]); else if (cur.length) { out.push(cur); cur = []; } } if (cur.length) out.push(cur); return out.filter((r) => r.length >= 4); };
     const asPts = (r) => (r.length === 4 ? [r[0], r[1], (r[0] + r[2]) / 2, (r[1] + r[3]) / 2, r[2], r[3]] : r);
     for (const r of runs(false)) NM.chain(g, asPts(r), 30, { color: '#6a0a18', thick: 5 });
-    NM.withRim(g, (q) => NM.silhouette(q, '#0a0406', (r) => embraceSil(r, 960, 905, 780, t)), '#ffb0a0', 0.3, -1, 5, 0.9);
+    const rock = Math.sin(lt * 1.9) * 0.035;
+    NM.withRim(g, (q) => NM.silhouette(q, '#0a0406', (r) => { r.translate(960, 905); r.rotate(rock); r.translate(-960, -905); embraceSil(r, 960, 905, 780, t); }), '#ffb0a0', 0.3, -1, 5, 0.9);
     for (const r of runs(true)) NM.chain(g, asPts(r), 30, { color: '#ff3a52', thick: 6, glow: 0.8 });
     NM.particles(g, t, { n: 50, seed: 45, kind: 'petal', vx: -30, vy: 60, drift: 40, size: [7, 12], alpha: 0.9 });
     g.restore();
@@ -538,12 +553,13 @@
     const t = S.t, lt = S.lt;
     const z = 1 + lt * 0.03;
     g.save(); g.translate(W / 2, 600); g.scale(z, z); g.translate(-W / 2, -600);
-    NM.paintSky(g, t, { top: '#0a0a16', mid: '#2a2a4a', low: '#5a4a6a', moon: { x: 960, y: 470, r: 360 }, clouds: 0.5, speed: 6 });
+    NM.paintSky(g, t, { top: '#0a0a16', mid: '#2a2a4a', low: '#5a4a6a', moon: { x: 960, y: 470, r: 360 }, clouds: 0.6, speed: 22 });
     NM.paintRidge(g, 4, 870, 26, 0.002, '#0c0a14', '#c8c0f0');
     for (const [x, ty] of [[420, 1], [560, 2], [1380, 0], [1560, 3]]) NM.paintGrave(g, x, 880, 70, 130, ty, { light: x < 960 ? 0.6 : -0.6, fog: 0.3, seed: x });
     NM.paintTree(g, 1820, 900, 800, 6, t, { rim: 'rgba(200,200,255,0.3)', lean: -0.2 });
     let hand = [960, 600];
-    NM.withRim(g, (q) => NM.silhouette(q, '#0a0810', (r) => { hand = backCoupleSil(r, 960, 905, 640, t); }), '#ecebff', 0, -1, 5, 0.85);
+    const swayC = Math.sin(lt * 1.5) * 0.02;
+    NM.withRim(g, (q) => NM.silhouette(q, '#0a0810', (r) => { r.translate(960, 905); r.rotate(swayC); r.translate(-960, -905); hand = backCoupleSil(r, 960, 905, 640, t * 1.6); hand = [960 + (hand[0] - 960) * Math.cos(swayC) - (hand[1] - 905) * Math.sin(swayC), 905 + (hand[0] - 960) * Math.sin(swayC) + (hand[1] - 905) * Math.cos(swayC)]; }), '#ecebff', 0, -1, 5, 0.85);
     glow(g, hand[0], hand[1], 70, '#ff3a52', 0.6 + 0.2 * Math.sin(t * 3));
     NM.chain(g, [hand[0], hand[1] + 10, hand[0] - 14, hand[1] + 140, hand[0] + 8, 900], 14, { color: '#ff3a52', thick: 3, glow: 0.6 });
     NM.particles(g, t, { n: 50, seed: 47, kind: 'petal', vx: -40, vy: 50, drift: 30, size: [6, 11], alpha: 0.85 });
@@ -578,10 +594,12 @@
     glow(g, 300, 400, 700, '#ffb060', 0.3);
     glow(g, 1000, 460, 650, '#c87040', 0.3);
     NM.paintCandle(g, 300, 900, 2.6, t, 2);
-    const hx = 720, hy = 1000, s = 640, a = -0.92, u = s / 100;
+    const hx = 720 + lt * 10, hy = 1000 - lt * 14, s = 640, u = s / 100;
     const decay = ease.inOutSine(range(0.3, 2.5, lt));
+    const a = -0.95 + lt * 0.05 + Math.sin(t * 31) * 0.004 * decay;
     const thr = lerp(115, -12, decay);
-    const hp = { curls: [0.12 + decay * 0.25, 0.1 + decay * 0.2, 0.14 + decay * 0.25, 0.2 + decay * 0.25, 0.1], spread: 0.6, arm: 150, armW: 26, sleeve: '#0e0b14', sleeveHi: '#4a3a5e', cuff: 'lace', light: 1 };
+    const claw = range(1.6, 2.4, lt), tr = (i) => Math.sin(t * 23 + i * 1.7) * 0.05 * (0.3 + decay);
+    const hp = { curls: [0.12 + decay * 0.25 + claw * 0.35 + tr(0), 0.1 + decay * 0.2 + claw * 0.4 + tr(1), 0.14 + decay * 0.25 + claw * 0.38 + tr(2), 0.2 + decay * 0.25 + claw * 0.3 + tr(3), 0.1 + claw * 0.3], spread: 0.6 + claw * 0.3, arm: 150, armW: 26, sleeve: '#0e0b14', sleeveHi: '#4a3a5e', cuff: 'lace', light: 1 };
     NM.paintHand(g, hx, hy, s, a, Object.assign({ kind: 'bone' }, hp));
     const dx = Math.cos(a), dy = Math.sin(a), nx = -dy, ny = dx;
     const bx = hx + dx * thr * u, by = hy + dy * thr * u;
@@ -608,7 +626,8 @@
     glow(g, 960, 820, 500, '#7ab8ff', 0.25 + 0.1 * Math.sin(t * 3));
     const pulse = 0.6 + 0.4 * Math.sin(t * 3);
     NM.paintIsolde(g, 960, 380, 620, lt < 1.5 ? 'cold' : 'smirk', t, { yaw: 0.1, noBlink: false, light: -0.3, locket: pulse });
-    const lx = 960, ly = 380 + 128 * 620 / 185 + 30, s = 54;
+    const lsw = Math.sin(lt * 3.2) * 0.12 * Math.exp(-lt * 0.4);
+    const lx = 960 + Math.sin(lsw) * 140, ly = 380 + 128 * 620 / 185 + 30 - (1 - Math.cos(lsw)) * 140, s = 54;
     NM.chain(g, [lx - 120, ly - 140, lx - 40, ly - 40, lx, ly - s * 0.6], 10, { color: '#b08850', thick: 2, highlight: '#f8e0a0' });
     NM.chain(g, [lx + 120, ly - 140, lx + 40, ly - 40, lx, ly - s * 0.6], 10, { color: '#b08850', thick: 2, highlight: '#f8e0a0' });
     g.save(); g.translate(lx, ly);
@@ -618,7 +637,7 @@
     g.restore();
     glow(g, lx, ly, 90, '#b9e6ff', 0.7 * pulse);
     g.save(); g.globalCompositeOperation = 'screen';
-    for (let i = 0; i < 8; i++) { const a = t * 1.2 + i / 8 * TAU, r = 220 + Math.sin(t + i) * 40; glow(g, lx + Math.cos(a) * r, ly - 200 + Math.sin(a) * r * 0.4 - 100, 22, '#b9e6ff', 0.5); }
+    for (let i = 0; i < 14; i++) { const k = (lt * 0.45 + i / 14) % 1, a = k * TAU * 2 + i, r = (1 - k) * 380; glow(g, lx + Math.cos(a) * r, ly + Math.sin(a) * r * 0.45 - (1 - k) * 160, 16 + 14 * (1 - k), '#b9e6ff', 0.6 * Math.sin(k * Math.PI)); }
     g.restore();
     g.restore();
     S.post.grade = { shadow: '#080a14', light: '#d0e8ff', amount: 0.3 };
@@ -628,21 +647,30 @@
   NM.shot(170.45, 173.6, (g, S) => {
     const t = S.t, lt = S.lt;
     NM.skyGrad(g, [[0, '#0e0408'], [1, '#2a0810']]);
-    const life = 1 - clamp(lt / 2.6);
+    const SQ = 2.1, ta = NM.hitStop(lt, [SQ], 0.12);
+    const life = 1 - clamp(ta / SQ);
     const b = NM.beat(t, 7) * life;
     glow(g, 900, 560, 700, '#ff2040', 0.15 + b * 0.3);
-    const hx = 470, hy = 800, s = 600, a = -0.1, u = s / 100;
-    const hp = { kind: 'glove', flip: true, curl: 0.42, spread: 0.15, arm: 120, armW: 28, sleeve: '#0e0b14', sleeveHi: '#4a3a5e', cuff: 'lace', ring: '#ff3a52', light: 1 };
+    const lift = ease.inOutSine(clamp(ta / 1.8));
+    const z = 1 + lift * 0.1;
+    g.save(); g.translate(760, 700); g.scale(z, z); g.translate(-760, -700 + lift * 60);
+    const squeeze = NM.spring(ta, SQ, 14, 5);
+    const hx = 470, hy = 660, s = 600, a = -0.1, u = s / 100;
+    const hp = { kind: 'glove', flip: true, curl: 0.42 + squeeze * 0.3, spread: 0.15 - squeeze * 0.1, arm: 120, armW: 28, sleeve: '#0e0b14', sleeveHi: '#4a3a5e', cuff: 'lace', ring: '#ff3a52', light: 1 };
     NM.paintHand(g, hx, hy, s, a, hp);
-    const cx = hx + 32 * u, cy = hy - 14 * u - 205;
-    glow(g, cx, cy, 380, '#ff2040', 0.12 + b * 0.25);
-    g.save(); g.translate(cx, cy); paintHeartRef(g, 1.75 * (1 + b * 0.08), t); g.restore();
+    const cx = hx + 32 * u, cy = hy - 14 * u - 205 + squeeze * 30;
+    glow(g, cx, cy, 380, '#ff2040', 0.12 + b * 0.25 + NM.impact(ta, SQ, 0.4) * 0.5);
+    g.save(); g.translate(cx, cy + 200); g.scale(1 + b * 0.08 + squeeze * 0.12, 1 + b * 0.06 - squeeze * 0.16); g.translate(0, -200); paintHeartRef(g, 1.75, t); g.restore();
+    if (ta > SQ) for (let i = 0; i < 18; i++) { const k = clamp((ta - SQ) * 1.4 - hash1(i) * 0.2); if (k <= 0 || k >= 1) continue; const an = -Math.PI / 2 + (hash1(i * 3) - 0.5) * 2.6, v = 300 + hash1(i * 5) * 400; g.fillStyle = i % 2 ? '#8a0a1e' : '#c4122f'; g.beginPath(); g.ellipse(cx + Math.cos(an) * v * k, cy + Math.sin(an) * v * k + 900 * k * k, 9, 14, an, 0, TAU); g.fill(); }
     // fingers over the front of the heart
     const dx = Math.cos(a), dy = Math.sin(a), kx = hx + dx * 38 * u, ky = hy + dy * 38 * u;
     g.save(); g.beginPath(); g.moveTo(kx - dy * 3000, ky + dx * 3000); g.lineTo(kx + dy * 3000, ky - dx * 3000); g.lineTo(kx + dy * 3000 + dx * 4000, ky - dx * 3000 + dy * 4000); g.lineTo(kx - dy * 3000 + dx * 4000, ky + dx * 3000 + dy * 4000); g.closePath(); g.clip();
     NM.paintHand(g, hx, hy, s, a, hp);
     g.restore();
     for (let i = 0; i < 4; i++) { const k = (t * 0.6 + i * 0.27) % 1; g.fillStyle = '#7a0a1a'; g.beginPath(); g.ellipse(cx + 30 + i * 46, hy + 40 + k * 300, 6, 12, 0, 0, TAU); g.fill(); }
+    g.restore();
+    S.post.shake = NM.impact(lt, SQ, 0.5) * 1.5;
+    if (lt > SQ && lt < SQ + 0.12) { S.post.flash = 0.4; S.post.flashColor = '#ff2040'; }
     S.post.extraUI = [(u2) => {
       const a2 = range(1.6, 2.2, lt);
       if (a2 <= 0) return;

@@ -16,9 +16,9 @@
   let scene, bufA, bufB, main;
   NM.initBuffers = function (mainCanvas) {
     main = mainCanvas;
-    scene = canvas(W, H);
-    bufA = canvas(W, H);
-    bufB = canvas(W, H);
+    scene = canvas(NM.RW, NM.RH);
+    bufA = canvas(NM.RW, NM.RH);
+    bufB = canvas(NM.RW, NM.RH);
   };
 
   function shotIndexAt(t) {
@@ -47,20 +47,71 @@
     ctx.globalAlpha = 1;
     ctx.globalCompositeOperation = 'source-over';
     ctx.imageSmoothingEnabled = true;
+    ctx.filter = 'none';
     ctx.fillStyle = '#000';
-    ctx.fillRect(0, 0, W, H);
+    ctx.fillRect(0, 0, cv.width, cv.height);
+    ctx.setTransform(NM.RS, 0, 0, NM.RS, 0, 0);
     shot.draw(ctx, S);
     ctx.restore();
     if (shot.out) {
       const k = clamp((t - (shot.end - shot.out.dur)) / shot.out.dur);
-      if (k > 0) { ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = shot.out.color || '#000'; ctx.globalAlpha = NM.ease.inOutSine(k); ctx.fillRect(0, 0, W, H); ctx.restore(); }
+      if (k > 0) {
+        if (NM.PIXEL) post.outFade = Math.max(post.outFade || 0, NM.ease.inOutSine(k));
+        else { ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = shot.out.color || '#000'; ctx.globalAlpha = NM.ease.inOutSine(k); ctx.fillRect(0, 0, W, H); ctx.restore(); }
+      }
     }
   }
+  // pixel style: finish one shot buffer (grade, bloom, palette) and apply its dithered fades
+  function stagePixel(cv, shot, post) {
+    NM.pixelStage(cv, shot, post);
+    if (post.outFade) NM.ditherFill(cv, post.outFade, shot.out.color || '#000000');
+  }
+
+  function renderPixel(t, i, shot, post) {
+    const g = scene.getContext('2d');
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    if (!shot) { g.fillStyle = '#000'; g.fillRect(0, 0, NM.RW, NM.RH); }
+    else {
+      const tin = shot.in;
+      const k = tin ? clamp((t - shot.start) / tin.dur) : 1;
+      if (tin && k < 1 && tin.type === 'fade' && i > 0) {
+        const prev = NM.SHOTS[i - 1], pp = newPost(prev);
+        drawShot(bufA, prev, t, pp); stagePixel(bufA, prev, pp);
+        drawShot(bufB, shot, t, post); stagePixel(bufB, shot, post);
+        g.globalCompositeOperation = 'copy'; g.drawImage(bufA, 0, 0); g.globalCompositeOperation = 'source-over';
+        NM.dissolve(scene, bufB, NM.ease.inOutSine(k));
+      } else {
+        drawShot(scene, shot, t, post);
+        if (tin && k < 1 && (tin.type === 'white' || tin.type === 'red')) {
+          post.flash = Math.max(post.flash, (1 - k) ** 1.5);
+          post.flashColor = tin.type === 'white' ? '#fff4e8' : '#ff2040';
+        }
+        stagePixel(scene, shot, post);
+        if (tin && k < 1 && tin.type === 'black') NM.ditherFill(scene, 1 - NM.ease.inOutSine(k));
+      }
+    }
+    NM.finishPixel(main, scene, t, post);
+    const u = NM.uiLayerBegin();
+    NM.drawUI(u, t, post);
+    NM.uiLayerCommit(main);
+  }
+
+  // pixel style: the graded low-res frame before palette quantisation (used to build palettes)
+  NM.renderStaged = function (t) {
+    const i = shotIndexAt(t), shot = i >= 0 ? NM.SHOTS[i] : null;
+    if (!shot) return null;
+    const post = newPost(shot);
+    drawShot(scene, shot, t, post);
+    post.quantize = false; post.flash = 0;
+    NM.pixelStage(scene, shot, post);
+    return { name: shot.name, cv: scene };
+  };
 
   NM.renderFrame = function (t) {
     const i = shotIndexAt(t);
     const shot = i >= 0 ? NM.SHOTS[i] : null;
     const post = newPost(shot);
+    if (NM.PIXEL) return renderPixel(t, i, shot, post);
     const g = scene.getContext('2d');
     g.setTransform(1, 0, 0, 1, 0, 0);
     if (!shot) {

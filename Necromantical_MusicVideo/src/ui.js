@@ -12,8 +12,32 @@
     g.beginPath(); g.moveTo(0, 0); g.bezierCurveTo(0, s * 0.6, s * 0.3, s, s * 0.7, s * 0.8); g.stroke();
     g.restore();
   }
+  // pixel-style frame: 1px gold rules, corner studs and a gem, snapped to whole pixels
+  function ornateBoxPixel(g, x, y, w, h, a, opt) {
+    const [X0, Y0, s] = NM.devXY(g, x, y), [X1, Y1] = NM.devXY(g, x + w, y + h);
+    const x0 = Math.round(X0), y0 = Math.round(Y0), x1 = Math.round(X1), y1 = Math.round(Y1), W0 = x1 - x0, H0 = y1 - y0;
+    g.save(); g.setTransform(1, 0, 0, 1, 0, 0); g.globalAlpha = a;
+    const bg = g.createLinearGradient(0, y0, 0, y1);
+    bg.addColorStop(0, opt.top || 'rgba(26,10,20,0.9)'); bg.addColorStop(1, opt.bottom || 'rgba(8,3,8,0.94)');
+    g.fillStyle = bg; g.fillRect(x0, y0, W0, H0);
+    const px = (xx, yy, ww, hh, c) => { g.fillStyle = c; g.fillRect(xx, yy, ww, hh); };
+    px(x0 + 2, y0 + 2, W0 - 4, 1, GOLD); px(x0 + 2, y1 - 3, W0 - 4, 1, GOLD); px(x0 + 2, y0 + 2, 1, H0 - 4, GOLD); px(x1 - 3, y0 + 2, 1, H0 - 4, GOLD);
+    px(x0 + 4, y0 + 4, W0 - 8, 1, GOLD_D); px(x0 + 4, y1 - 5, W0 - 8, 1, GOLD_D); px(x0 + 4, y0 + 4, 1, H0 - 8, GOLD_D); px(x1 - 5, y0 + 4, 1, H0 - 8, GOLD_D);
+    for (const [cx, cy, sx, sy] of [[x0 + 2, y0 + 2, 1, 1], [x1 - 3, y0 + 2, -1, 1], [x0 + 2, y1 - 3, 1, -1], [x1 - 3, y1 - 3, -1, -1]]) {
+      px(cx - 1, cy - 1, 3, 3, GOLD); px(cx, cy, 1, 1, '#fff0c0');
+      for (let k = 2; k < 7; k++) { px(cx + sx * k, cy + sy * (k > 4 ? 1 : 0), 1, 1, GOLD); px(cx + sx * (k > 4 ? 1 : 0), cy + sy * k, 1, 1, GOLD); }
+      px(cx + sx * 4, cy + sy * 3, 1, 1, GOLD); px(cx + sx * 3, cy + sy * 4, 1, 1, GOLD);
+    }
+    if (opt.gem !== false) {
+      const gx = Math.round((x0 + x1) / 2), gy = y0 + 2;
+      for (let k = -3; k <= 3; k++) px(gx - (3 - Math.abs(k)), gy + k, (3 - Math.abs(k)) * 2 + 1, 1, GOLD);
+      px(gx - 1, gy, 3, 2, CRIM); px(gx - 1, gy, 1, 1, '#ff9aa8');
+    }
+    g.restore();
+  }
   NM.ornateBox = function (g, x, y, w, h, a = 1, opt = {}) {
     if (a <= 0.01) return;
+    if (NM.PIXEL) return ornateBoxPixel(g, x, y, w, h, a, opt);
     g.save();
     g.globalAlpha = a;
     const bg = g.createLinearGradient(0, y, 0, y + h);
@@ -37,6 +61,19 @@
   };
 
   NM.uiText = function (g, s, x, y, opt = {}) {
+    if (NM.PIXEL) {
+      const [dx, dy, sc] = NM.devXY(g, x, y);
+      const f = NM.pixFont(opt.font || 'italic 46px "IM Fell English"').replace(/(\d+(?:\.\d+)?)px/, (_, n) => `${Math.round(n * sc)}px`);
+      g.save(); g.setTransform(1, 0, 0, 1, 0, 0);
+      NM.rawFont(g, f);
+      g.textBaseline = opt.base || 'alphabetic'; g.textAlign = opt.align || 'left';
+      g.globalAlpha = opt.alpha ?? 1;
+      const X = Math.round(dx), Y = Math.round(dy);
+      if (opt.shadow !== 'rgba(0,0,0,0)') { g.fillStyle = '#060208'; g.fillText(s, X + 1, Y + 1); }
+      g.fillStyle = opt.color || CREAM; g.fillText(s, X, Y);
+      g.restore();
+      return;
+    }
     g.save();
     g.font = opt.font || 'italic 46px "IM Fell English"';
     g.textBaseline = opt.base || 'alphabetic'; g.textAlign = opt.align || 'left';
@@ -59,11 +96,31 @@
     g.fillStyle = bg; g.fillRect(0, 0, 180, 210);
     if (who === 'lucien') NM.paintLucien(g, 90, 96, 150, expr, 0, { noBlink: true, yaw: 0.15 });
     else NM.paintIsolde(g, 90, 96, 150, expr, 0, { noBlink: true, yaw: -0.15 });
+    if (NM.PIXEL) {
+      // shrink to the cameo's on-screen pixel size and give it a portrait palette
+      const p = canvas(Math.round(124 * NM.RS), Math.round(170 * NM.RS));
+      p.getContext('2d').drawImage(c, 0, 0, p.width, p.height);
+      NM.quantize(p, NM.PAL_PORTRAIT, 0.7);
+      cameoCache.set(key, p);
+      return p;
+    }
     NM.kuwahara(c, 2, 4);
     cameoCache.set(key, c);
     return c;
   }
   NM.drawCameo = function (g, x, y, rx, ry, who, expr, a = 1) {
+    if (NM.PIXEL) {
+      const [cx, cy, sc] = NM.devXY(g, x, y), Rx = Math.round(rx * sc), Ry = Math.round(ry * sc), X = Math.round(cx), Y = Math.round(cy);
+      g.save(); g.setTransform(1, 0, 0, 1, 0, 0); g.globalAlpha = a; g.imageSmoothingEnabled = false;
+      const img = cameo(who, expr);
+      g.save(); g.beginPath(); g.ellipse(X, Y, Rx, Ry, 0, 0, TAU); g.clip();
+      g.drawImage(img, X - Math.round(img.width / 2), Y - Ry - 1);
+      g.restore();
+      g.strokeStyle = GOLD; g.lineWidth = 2; g.beginPath(); g.ellipse(X, Y, Rx, Ry, 0, 0, TAU); g.stroke();
+      g.fillStyle = GOLD; g.fillRect(X - 1, Y - Ry - 3, 3, 3); g.fillRect(X - 1, Y + Ry, 3, 3);
+      g.restore();
+      return;
+    }
     g.save(); g.globalAlpha = a;
     g.beginPath(); g.ellipse(x, y, rx, ry, 0, 0, TAU); g.save(); g.clip();
     g.drawImage(cameo(who, expr), x - rx, y - ry * 1.02, rx * 2, ry * 2.3);

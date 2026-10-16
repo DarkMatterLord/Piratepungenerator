@@ -64,6 +64,28 @@
     g.restore();
   };
 
+  // bat silhouette; flap in radians
+  NM.bat = function (g, x, y, s, flap, col = '#07050a') {
+    const w = Math.sin(flap);
+    g.save(); g.translate(x, y); g.scale(s, s); g.fillStyle = col;
+    g.beginPath(); g.ellipse(0, 0, 4, 6, 0, 0, TAU); g.fill();
+    for (const sx of [-1, 1]) {
+      g.beginPath(); g.moveTo(0, -2); g.lineTo(sx * 10, -6 - w * 10); g.lineTo(sx * 22, -2 - w * 14); g.lineTo(sx * 18, 2 - w * 6); g.lineTo(sx * 13, 0 - w * 4); g.lineTo(sx * 9, 4 - w * 3); g.lineTo(sx * 4, 2); g.closePath(); g.fill();
+    }
+    g.beginPath(); g.moveTo(-3, -5); g.lineTo(-2, -9); g.lineTo(0, -6); g.lineTo(2, -9); g.lineTo(3, -5); g.fill();
+    g.restore();
+  };
+  // a stream of bats bursting from a point (local time lt, start t0)
+  NM.batBurst = function (g, lt, t0, x, y, n, seed, s = 1) {
+    for (let i = 0; i < n; i++) {
+      const k = lt - t0 - hash1(i * 7 + seed) * 0.8;
+      if (k <= 0 || k > 3) continue;
+      const a = -Math.PI / 2 + (hash1(i * 3 + seed) - 0.5) * 2.2, v = 260 + hash1(i * 5 + seed) * 300;
+      const px = x + Math.cos(a) * v * k + Math.sin(k * 6 + i) * 20, py = y + Math.sin(a) * v * k * 0.6 - k * 40 + Math.cos(k * 5 + i) * 14;
+      NM.bat(g, px, py, s * (0.8 + hash1(i + seed) * 0.6) * (1 + k * 0.3), k * 22 + i);
+    }
+  };
+
   // wrought-iron gate (two leaves), open 0..1
   NM.ironGate = function (g, cx, y, w, h, open, o = {}) {
     for (const side of [-1, 1]) {
@@ -155,18 +177,26 @@
       const k = clamp(drain * 1.6 - i * 0.12);
       if (k > 0 && k < 1) { const px = lerp(cx, 960, ease.inQuad(k)), py = lerp(cy - 60, 290, ease.inQuad(k)) - Math.sin(k * Math.PI) * 120; glow(g, px, py, 40, '#fff0d8', 0.85); }
     }
+    // they lean in, meet with a little spring, then his arm wraps her and they sway
+    const meet = NM.spring(lt, 0.15, 6, 3.4), gap = Math.max(0, 1 - meet) * 14 + (meet > 1 ? (1 - meet) * 6 : 0);
+    const herArm = ease.outCubic(range(0.45, 1.0, lt)), hisArm = ease.outCubic(range(0.75, 1.4, lt));
+    const rock = Math.sin(lt * 1.6) * 0.02 * range(0.6, 1.4, lt);
     const kiss = (q) => {
-      q.save(); q.scale(4, 4);
+      q.save(); q.scale(4, 4); q.translate(240, 280); q.rotate(rock); q.translate(-240, -280);
       const lipX = 240, lipY = 100 + Math.sin(t * 1.3) * 0.6;
-      NM.profileHead(q, lipX, lipY, 46, -1, 0.3, 'lucien');
+      q.save(); q.translate(gap / 2, 0);
+      NM.profileHead(q, lipX, lipY, 46, -1, 0.3 - gap * 0.01, 'lucien');
       q.beginPath(); q.moveTo(248, 118); q.quadraticCurveTo(250, 140, 254, 160); q.lineTo(256, 280); q.lineTo(304, 280); q.lineTo(300, 170); q.quadraticCurveTo(298, 128, 280, 104); q.closePath(); q.fill();
-      NM.profileHead(q, lipX, lipY, 40, 1, -0.25, 'isolde');
+      q.restore();
+      q.save(); q.translate(-gap / 2, 0);
+      NM.profileHead(q, lipX, lipY, 40, 1, -0.25 + gap * 0.012, 'isolde');
       const sw = Math.sin(t * 1.7) * 3;
       q.beginPath(); q.moveTo(206, 80); q.bezierCurveTo(192, 110, 190 + sw, 160, 176 + sw * 2, 220); q.lineTo(204, 224); q.bezierCurveTo(206, 170, 212, 124, 224, 98); q.closePath(); q.fill();
       q.beginPath(); q.moveTo(232, 114); q.quadraticCurveTo(242, 136, 238, 150); q.quadraticCurveTo(232, 166, 236, 176); q.lineTo(262, 280); q.lineTo(176, 280); q.lineTo(204, 176); q.quadraticCurveTo(208, 150, 206, 128); q.quadraticCurveTo(214, 112, 222, 108); q.closePath(); q.fill();
+      q.restore();
       q.lineCap = 'round'; q.strokeStyle = q.fillStyle;
-      q.lineWidth = 6; q.beginPath(); q.moveTo(222, 130); q.quadraticCurveTo(244, 122, 272, 100); q.stroke();
-      q.lineWidth = 7; q.beginPath(); q.moveTo(286, 132); q.quadraticCurveTo(246, 176, 208, 160); q.stroke();
+      if (herArm > 0) { q.lineWidth = 6; q.beginPath(); q.moveTo(222 - gap / 2, 150 - 20 * herArm); q.quadraticCurveTo(244, 150 - 28 * herArm, lerp(232, 272, herArm), lerp(150, 100, herArm)); q.stroke(); }
+      if (hisArm > 0) { q.lineWidth = 7; q.beginPath(); q.moveTo(286 + gap / 2, 132); q.quadraticCurveTo(lerp(280, 246, hisArm), lerp(150, 176, hisArm), lerp(270, 208, hisArm), lerp(170, 160, hisArm)); q.stroke(); }
       q.restore();
     };
     const veil = (q) => { q.save(); q.scale(4, 4); const sw = Math.sin(t * 1.4) * 6; q.beginPath(); q.moveTo(206, 78); q.bezierCurveTo(170, 96 + sw, 130 - sw, 140, 90 - sw * 2, 220); q.lineTo(150, 230); q.bezierCurveTo(170, 160, 190, 120, 222, 98); q.closePath(); q.fill(); q.restore(); };
@@ -178,6 +208,7 @@
     NM.paintTree(g, 1840, 1020, 920, 5, t, { color: '#0c0406', rim: 'rgba(255,120,120,0.35)', lean: -0.25, rimDx: -2 });
     glow(g, 960, 290, 120, '#fff0d8', 0.5 * drain);
     NM.lilyField(g, t, 950, 50, 9, { size: 130, depth: 140 });
+    for (let i = 0; i < 26; i++) { const a = i * 2.39 + lt * (0.9 + (i % 4) * 0.2), r = 260 + (i % 5) * 70 + Math.sin(lt + i) * 30; const px = 960 + Math.cos(a) * r, py = 520 + Math.sin(a) * r * 0.45; g.save(); g.translate(px, py); g.rotate(a * 2); g.fillStyle = i % 3 ? '#c4122f' : '#ff5a6e'; g.beginPath(); g.ellipse(0, 0, 9, 4.5, 0, 0, TAU); g.fill(); g.restore(); }
     g.restore();
     NM.particles(g, t, { n: 50, seed: 21, kind: 'petal', vx: -40, vy: 60, drift: 50, size: [5, 8], alpha: 0.9 });
     S.post.grade = { shadow: '#1a0408', light: '#ffb0a0', amount: 0.3 };
@@ -232,9 +263,12 @@
   // ======================================================================
   NM.shot(48.4, 53.55, (g, S) => {
     const t = S.t, lt = S.lt;
-    const z = 1 + lt * 0.03;
-    g.save(); g.translate(W / 2, H * 0.55); g.scale(z, z); g.translate(-W / 2, -H * 0.55);
+    const z = 1 + lt * 0.035;
+    const st = NM.strikeAt(t, [51.4], 0.5);
+    g.save(); g.translate(W / 2 - lt * 8, H * 0.55); g.scale(z, z); g.translate(-W / 2, -H * 0.55);
     NM.manorScene(g, t, { x: W / 2, y: 720, scale: 1.0, lit: [1, 4, 7, 10, 12] });
+    if (st.v > 0.3) NM.bolt(g, 1400, -20, 1460, 420, 11, st.v, { color: '#e8e4ff', w: 1.2 });
+    NM.batBurst(g, lt, 1.6, W / 2, 330, 26, 4, 1.4);
     // the doors open: warm light
     const door = range(3.9, 4.6, lt);
     if (door > 0) { g.fillStyle = rgba('#ffcf8a', 0.9 * door); g.fillRect(W / 2 - 30, 640, 60 * door, 80); glow(g, W / 2, 680, 220, '#ffaa50', 0.6 * door); }
@@ -247,9 +281,14 @@
     if (lt < 4.9) { NM.figLucienBack(g, W / 2 + 40 * sc, yy - 4 * sc, 560 * sc, t); NM.figIsoldeBack(g, W / 2 - 40 * sc, yy, 520 * sc, t, { lantern: true }); }
     g.restore();
     // foreground gate swinging open, cat on the pillar
-    NM.ironGate(g, W / 2, H + 40, 1100, 760, ease.inOutSine(clamp(lt / 1.6)));
-    NM.paintCat(g, W / 2 - 600, H + 40 - 760 - 80, 120, t, { dir: 1 });
+    // the heavy gate creaks open, swings past and settles with a clang
+    const gate = Math.min(1.06, NM.spring(lt, 0.2, 5, 2.6) * 0.98);
+    const gx = W / 2 - lt * 26;
+    NM.ironGate(g, gx, H + 40, 1100, 760, clamp(gate, 0, 1.06));
+    NM.paintCat(g, gx - 600, H + 40 - 760 - 80, 120, t, { dir: 1 });
     NM.paintFog(g, t, 820, 280, 0.28, '#6a6090', 14);
+    S.post.shake = NM.impact(lt, 0.9, 0.35) * 0.8 + NM.impact(lt, 3.0, 0.5) * 0.4;
+    S.post.flash = st.v * 0.35; S.post.flashColor = '#dcd8ff';
     S.post.grade = { shadow: '#0c0818', light: '#ffc89a', amount: 0.35 };
   }, { name: 'mansion', in: { type: 'black', dur: 0.6 }, out: { dur: 0.4 } });
 
@@ -335,18 +374,27 @@
   // 62.65 – 65.60 he mirrors her every gesture; their shadows loom on the crypt wall
   NM.shot(62.65, 65.6, (g, S) => {
     const t = S.t, lt = S.lt;
-    const c = NM.cam3({ x: 0, y: 220, z: -200, f: 900, vy: H * 0.4 });
+    const c = NM.cam3({ x: 0, y: 220, z: -200 + lt * 40, f: 900, vy: H * 0.4 });
     NM.interior(g, t, c, 'crypt', {});
-    const a = 0.9 + Math.sin(t * 2.2) * 0.7, a2 = 0.9 + Math.sin((t - 0.15) * 2.2) * 0.7;
-    const isoP = { dir: 1, armF: [a, 0.4], armB: [0.3, 0.4], expr: 'smirk', yaw: 0.45, glow: 0.6, wind: 0.4 };
-    const lucP = { dir: -1, armF: [a2, 0.4], armB: [0.3, 0.4], expr: 'hollow', yaw: 0.45, headTilt: 0.1 };
+    // she snaps from pose to pose on the beat; he follows a moment later, heavier, overshooting
+    const POSES = [
+      { aF: [0.5, 0.4], aB: [0.3, 0.4], lean: 0, tilt: 0.1 },
+      { aF: [2.3, 0.2], aB: [0.5, 0.5], lean: -0.08, tilt: -0.1 },
+      { aF: [1.3, -0.4], aB: [1.6, 0.3], lean: 0.12, tilt: 0.2 },
+      { aF: [2.7, 0.5], aB: [2.4, 0.4], lean: -0.12, tilt: -0.25 },
+    ];
+    const pi = NM.poseAt(t, NM.T.beats, POSES, 0, 16, 9), pl = NM.poseAt(t, NM.T.beats, POSES, 0.17, 10, 4.5);
+    const snap = NM.beat(t, 9);
+    const isoP = { dir: 1, armF: pi.aF, armB: pi.aB, lean: pi.lean, expr: 'smirk', yaw: 0.45, glow: 0.5 + snap * 0.5, wind: 0.4 + snap * 0.6, headTilt: -pi.tilt * 0.4 };
+    const lucP = { dir: -1, armF: pl.aF, armB: pl.aB, lean: pl.lean, expr: 'hollow', yaw: 0.45, headTilt: 0.1 + pl.tilt, idle: 0.3 };
     // giant shadows on the back wall
     g.save(); g.globalCompositeOperation = 'multiply'; g.globalAlpha = 0.55;
     NM.silhouette(g, '#100810', (q) => { q.translate(W / 2, 760); q.scale(1.7, 1.7); q.translate(-W / 2, -760); NM.figIsolde(q, 780, 760, 560, isoP, t, { noHead: true }); NM.figLucien(q, 1140, 760, 600, lucP, t, { noHead: true }); });
     g.restore();
     let hand;
     NM.withRim(g, (q) => { hand = NM.figIsolde(q, 700, 1000, 820, isoP, t); NM.figLucien(q, 1240, 1000, 880, lucP, t); }, '#ffcf8a', -1, -0.5, 4, 0.6);
-    NM.chain(g, [hand.hand[0], hand.hand[1], 970, hand.hand[1] - 120, 1205, 312], 30, { color: '#ff3a52', thick: 6, glow: 0.8 });
+    NM.chain(g, [hand.hand[0], hand.hand[1], 970, hand.hand[1] - 120 * (1 - snap * 0.8), 1205, 312], 30, { color: '#ff3a52', thick: 6, glow: 0.6 + snap * 0.6 });
+    S.post.shake = snap * 0.35;
     S.post.grade = { shadow: '#0a0a14', light: '#ffc8a0', amount: 0.35 };
   }, { name: 'v2-reins', in: { type: 'black', dur: 0.2 } });
 
@@ -453,12 +501,23 @@
     for (let x = 240; x < 1680; x += 96) { g.fillStyle = 'rgba(0,0,0,0.4)'; g.fillRect(x, 760, 3, 160); }
     NM.shaft(g, 960, -40, 200, 960, 800, 900, '#fff0d8', 0.32);
     softShade(g, 960, 770, 460, 70, '#fff0d8', 0.45, 'screen');
-    const j = (a) => Math.sin(t * 5 + a) * 0.5 + Math.sin(t * 9.3 + a * 2) * 0.25;
-    const bob = Math.abs(Math.sin(t * 5)) * 24;
-    const pose = { dir: 1, armF: [1.7 + j(0) * 0.8, -0.6], armB: [1.2 + j(1) * 0.8, -0.5], legF: [0.4 + j(2) * 0.4, -0.3], legB: [-0.2 + j(3) * 0.4, 0.5], headTilt: 0.35 + j(4) * 0.2, expr: 'hollow', yaw: 0.2 };
+    // on every beat the strings yank him up into a new pose; he drops and lands with a thud
+    const PP = [
+      { aF: [1.7, -0.6], aB: [1.2, -0.5], lF: [0.4, -0.3], lB: [-0.2, 0.5], ht: 0.35 },
+      { aF: [2.6, -0.2], aB: [0.4, -0.6], lF: [1.0, -1.2], lB: [-0.1, 0.2], ht: 0.1 },
+      { aF: [0.6, -0.8], aB: [2.4, -0.3], lF: [-0.1, 0.3], lB: [0.9, -1.0], ht: 0.55 },
+      { aF: [2.2, 0.4], aB: [2.2, 0.4], lF: [0.6, -0.8], lB: [0.6, -0.8], ht: -0.1 },
+    ];
+    const pp = NM.poseAt(t, NM.T.beats, PP, 0, 18, 7);
+    const bi = NM.lastIndexBefore(NM.T.beats, t), kb = bi >= 0 ? t - NM.T.beats[bi] : 1;
+    const lift = kb < 0.3 ? Math.sin((kb / 0.3) * Math.PI) * 70 : 0, land = NM.impact(kb, 0.3, 0.22);
+    const bob = lift - land * 10;
+    const pose = { dir: 1, armF: pp.aF, armB: pp.aB, legF: pp.lF, legB: pp.lB, headTilt: pp.ht + land * 0.25, expr: 'hollow', yaw: 0.2, idle: 0 };
     let lp;
-    NM.withRim(g, (q) => { lp = NM.figLucien(q, 944, 770 - bob, 620, pose, t); }, '#fff0d8', 0, -1, 4, 0.8);
-    const bx = 960 + Math.sin(t * 2.5) * 64, by = 70 + Math.sin(t * 5) * 16;
+    NM.withRim(g, (q) => { q.save(); NM.squash(q, 944, 770, land * 0.08); lp = NM.figLucien(q, 944, 770 - bob, 620, pose, t); q.restore(); }, '#fff0d8', 0, -1, 4, 0.8);
+    if (land > 0) NM.particles(g, kb - 0.3, { n: 16, seed: 23 + bi, kind: 'dot', x: 820, y: 740, w: 260, h: 30, vx: 0, vy: -90, drift: 30, size: [2, 5], color: '#8a6a4a', alpha: land });
+    const side = bi % 2 ? 1 : -1;
+    const bx = 960 + side * 50 * (1 - Math.exp(-kb * 8)) + Math.sin(t * 2.5) * 20, by = 70 - lift * 0.6 + Math.sin(t * 5) * 6;
     const knees = [[lp.chest[0] - 24, 770 - bob - 140], [lp.chest[0] + 40, 770 - bob - 120]];
     const ends = [lp.hand2, lp.hand, lp.head, ...knees].sort((a, b) => a[0] - b[0]);
     g.strokeStyle = 'rgba(255,240,220,0.75)'; g.lineWidth = 2;
@@ -480,6 +539,7 @@
       NM.paintHand(q, bx - 170, by - 95, 200, Math.PI / 2 + 0.12, { kind: 'glove', curl: 0.75, spread: 0.1, arm: 110, armW: 26, sleeve: '#0e0b14', sleeveHi: '#4a3a5e', cuff: 'lace', ring: '#ff3a52', light: -1 });
       NM.paintHand(q, bx + 170, by - 95, 200, Math.PI / 2 - 0.12, { kind: 'glove', flip: true, curl: 0.75, spread: 0.1, arm: 110, armW: 26, sleeve: '#0e0b14', sleeveHi: '#4a3a5e', cuff: 'lace', light: -1 });
     }, '#fff0d8', 0, -1, 3, 0.6);
+    S.post.shake = land * 0.6;
     S.post.grade = { shadow: '#14040a', light: '#fff0d8', amount: 0.3 };
   }, { name: 'p2-puppet', in: { type: 'black', dur: 0.2 } });
 

@@ -65,12 +65,17 @@
     g.stroke(); g.globalAlpha = 1;
   }
 
+  // figure-scale head mode (set per call): shoulder-length hair mass, fringe shadow, scene-tinted skin
+  let FIG = false;
+
   // ---------- the portrait ----------
   // cx, cy: centre of the eyes line; s: head height (crown to chin) in px
   // o: { yaw (-0.5..0.5), tilt, light: -1 (key from left) .. 1, rim, body:true }
   function portrait(g, cx, cy, s, P, e, t, o = {}) {
     const u = s / 185;
-    const yaw = clamp(o.yaw || 0, -0.55, 0.55), cy_ = Math.cos(yaw), sy_ = Math.sin(yaw);
+    FIG = !!o.fig;
+    const yawMax = FIG ? 0.72 : 0.55;
+    const yaw = clamp(o.yaw || 0, -yawMax, yawMax), cy_ = Math.cos(yaw), sy_ = Math.sin(yaw);
     const R = 62;
     // project a face-surface point (x, y) with bulge depth -> screen x
     const fz = (x, extra = 0) => Math.sqrt(Math.max(0, R * R - x * x)) * 0.62 + extra;
@@ -86,7 +91,7 @@
     g.lineCap = 'round'; g.lineJoin = 'round';
 
     // ===== back hair / veil =====
-    if (P.veil) {
+    if (P.veil && !FIG) {
       const vg = g.createLinearGradient(0, -110, 0, 260);
       vg.addColorStop(0, 'rgba(26,18,36,0.92)'); vg.addColorStop(1, 'rgba(26,18,36,0.0)');
       g.fillStyle = vg;
@@ -160,7 +165,7 @@
     }
     g.restore();
     // subtle edge darkening on the face silhouette (painted, not outlined)
-    g.save(); g.globalAlpha = 0.35; g.strokeStyle = P.skinDeep; g.lineWidth = 2.2; g.stroke(face); g.restore();
+    if (!FIG) { g.save(); g.globalAlpha = 0.35; g.strokeStyle = P.skinDeep; g.lineWidth = 2.2; g.stroke(face); g.restore(); }
 
     // ===== eyes =====
     const lid = e.lid;
@@ -168,7 +173,7 @@
     for (const sx of [-1, 1]) {
       const ex0 = sx * 25;
       const k = fore(ex0);
-      const ew = 34 * k, eh = 15;
+      const ew = 34 * k * (FIG ? 0.84 : 1), eh = FIG ? 13 : 15;
       const ex = X(ex0), ey = 0;
       eyeInfo.push({ x: ex, y: ey });
       // smoky makeup
@@ -281,9 +286,23 @@
       g.restore();
     }
 
+    // ===== figure heads: the fringe and side hair shade the face, and the skin takes the scene's light =====
+    if (FIG) {
+      g.save(); g.clip(face);
+      const fs = g.createLinearGradient(0, -40, 0, 22);
+      fs.addColorStop(0, 'rgba(12,6,16,0.6)'); fs.addColorStop(1, 'rgba(12,6,16,0)');
+      g.fillStyle = fs; g.fillRect(-90, -110, 180, 135);
+      const sideS = -Math.sign(light || 1);
+      const ss = g.createLinearGradient(X(sideS * 62), 0, X(sideS * 20), 0);
+      ss.addColorStop(0, 'rgba(12,6,16,0.55)'); ss.addColorStop(1, 'rgba(12,6,16,0)');
+      g.fillStyle = ss; g.fillRect(-90, -110, 180, 210);
+      g.globalCompositeOperation = 'multiply'; g.globalAlpha = o.ambientA ?? 0.32; g.fillStyle = o.ambient || '#6a5a7a'; g.fillRect(-90, -110, 180, 210);
+      g.restore();
+    }
     // ===== front hair (bangs, side locks), veil netting, ornaments =====
     drawFrontHair(g, P, R0, t, yaw, X, e);
     g.restore();
+    FIG = false;
 
     // glowing eyes (unscaled glow sprites)
     if (e.glow > 0.05 && P.eyeGlow) {
@@ -310,6 +329,7 @@
     radial(g, nx - 16, 98, 7, 22, P.skinShadow, 0.35, 'multiply'); // neck muscles
     radial(g, nx + 16, 98, 7, 22, P.skinShadow, 0.35, 'multiply');
     radial(g, nx, 112, 10, 6, P.skinDeep, 0.4, 'multiply');        // pit of the throat
+    if (FIG) { const ng = g.createLinearGradient(0, 40, 0, 122); ng.addColorStop(0, 'rgba(14,6,18,0.7)'); ng.addColorStop(1, 'rgba(14,6,18,0.35)'); g.fillStyle = ng; g.fillRect(nx - 60, 40, 120, 90); }
     g.restore();
   }
 
@@ -410,7 +430,16 @@
     const H = P.hair;
     g.save();
     const sway = Math.sin((t || 0) * 1.2) * 3;
-    if (P.hairStyle === 'hime') {
+    if (P.hairStyle === 'hime' && FIG) {
+      // falls behind the shoulders (the body carries it on down the back), tapering, never a slab
+      g.fillStyle = H[0];
+      g.beginPath(); g.moveTo(-62, -70); g.bezierCurveTo(-82, -10, -86 + sway, 60, -74 + sway, 120); g.quadraticCurveTo(-40, 104, 0, 112); g.quadraticCurveTo(40, 104, 74 + sway, 120); g.bezierCurveTo(86 + sway, 60, 82, -10, 62, -70); g.closePath(); g.fill();
+      for (let i = 0; i < 22; i++) {
+        const side = i % 2 ? 1 : -1, f = R0();
+        const x0 = side * (24 + f * 40), x1 = side * (64 + R0() * 16) + sway * (1 + f);
+        lock(g, x0, -96 + f * 30, x0 + side * 26, -20, x1 - side * 6, 70, x1 - side * 4 + (R0() - 0.5) * 10, 110 + R0() * 40, 22 + R0() * 12, 0.6, H, R0, i % 4 === 0 ? [0.05, 0.25, P.sheen] : null);
+      }
+    } else if (P.hairStyle === 'hime') {
       g.fillStyle = H[0];
       g.beginPath(); g.moveTo(-66, -70); g.bezierCurveTo(-96, 20, -104 + sway, 160, -112 + sway, 300); g.lineTo(112 + sway, 300); g.bezierCurveTo(104 + sway, 160, 96, 20, 66, -70); g.closePath(); g.fill();
       for (let i = 0; i < 34; i++) {
@@ -440,7 +469,8 @@
       // side locks framing the face (long, straight, slightly curling under the jaw)
       for (const sx of [-1, 1]) for (let i = 0; i < 5; i++) {
         const x0 = sx * (38 + i * 5), xe = X(sx * (52 + i * 4), 2) + sx * i * 2;
-        lock(g, x0, -98, X(sx * (62 + i * 3), 2), -50, xe - sx * 2, 70, xe - sx * (4 + i), 150 + i * 14 + R0() * 10, 22 - i * 2, 1, H, R0, i === 1 ? [0.08, 0.3, P.sheen] : null);
+        if (FIG) lock(g, x0, -98, X(sx * (60 + i * 3), 2), -50, xe - sx * 6, 50, xe - sx * (12 + i * 2), 84 + i * 12 + R0() * 8, 20 - i * 2, 0.6, H, R0, i === 1 ? [0.08, 0.3, P.sheen] : null);
+        else lock(g, x0, -98, X(sx * (62 + i * 3), 2), -50, xe - sx * 2, 70, xe - sx * (4 + i), 150 + i * 14 + R0() * 10, 22 - i * 2, 1, H, R0, i === 1 ? [0.08, 0.3, P.sheen] : null);
       }
       // blunt hime bangs: locks from the crown ending on the fringe line
       const fringeY = -14;

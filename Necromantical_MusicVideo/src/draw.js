@@ -790,16 +790,21 @@
   };
 
   // draw something into a temp layer, then flood it with one colour (silhouette)
-  let silC = null;
+  const silPool = [];
+  let silDepth = 0;
   NM.silhouette = function (g, color, fn, rim) {
-    if (!silC) silC = NM.canvas(W, H);
-    const s = silC.getContext('2d');
-    s.setTransform(1, 0, 0, 1, 0, 0); s.globalCompositeOperation = 'source-over'; s.clearRect(0, 0, W, H);
-    s.save(); fn(s); s.restore();
-    s.globalCompositeOperation = 'source-in';
-    s.fillStyle = color; s.fillRect(0, 0, W, H);
-    s.globalCompositeOperation = 'source-over';
-    if (rim) { g.save(); g.globalAlpha = rim.a ?? 1; g.drawImage(silC, rim.dx ?? -1, rim.dy ?? 0); g.restore(); }
-    g.drawImage(silC, 0, 0);
+    const silC = silPool[silDepth] || (silPool[silDepth] = NM.layer());
+    silDepth++;
+    try {
+      const s = NM.beginLayer(silC);
+      s.save(); fn(s); s.restore();
+      s.setTransform(1, 0, 0, 1, 0, 0);
+      s.globalCompositeOperation = 'source-in';
+      s.fillStyle = color; s.fillRect(0, 0, silC.width, silC.height);
+      s.globalCompositeOperation = 'source-over';
+      const k = NM.PIXEL ? 1 / NM.RS : 1;
+      if (rim) { g.save(); g.globalAlpha = rim.a ?? 1; g.drawImage(silC, Math.sign(rim.dx ?? -1) * k, Math.sign(rim.dy ?? 0) * k, W, H); g.restore(); }
+      g.drawImage(silC, 0, 0, W, H);
+    } finally { silDepth--; }
   };
 })();

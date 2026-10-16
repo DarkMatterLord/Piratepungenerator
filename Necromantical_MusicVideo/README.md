@@ -1,11 +1,17 @@
 # Necromantical — Music Video
 
-A fully animated gothic romance horror music video for **"Necromantical" by darkmatter96**,
-painted in a dark, macabre oil-painting style: full-HD painted scenes with visible brushwork and
-canvas grain, chiaroscuro portraits, blood moons and candlelight. A gothic take on the RPG horror
-game look (*The Witch's House*, *Ib*, *Mad Father*, *Symbiosis*) runs on top: the lyrics arrive
-as the villainess's dialogue in an ornate message window, with choice, status and item windows
-and a title menu.
+A fully animated gothic romance horror music video for **"Necromantical" by darkmatter96**, drawn
+as detailed dark pixel art in the spirit of gothic pixel games (*Blasphemous*) and RPG horror games
+(*The Witch's House*, *Ib*, *Mad Father*, *Symbiosis*). It uses limited per-scene palettes,
+ordered dithering, sprite outlines, and moonlight, candlelight and blood-red glows. The animation
+is built for weight: anticipation and overshoot on gestures, hit-stops and screen shake on impacts,
+breathing and secondary motion on hair, veils and skirts, and camera moves with parallax.
+
+The lyrics arrive as the villainess's dialogue in a pixel RPG message window, along with choice,
+status and item windows and a title menu.
+
+An earlier full-HD **oil-paint** rendering of the same video is still built from this code
+(`--style paint`, see below).
 
 **The story.** Isolde loses her husband Lucien when his carriage plunges from a storm-lashed cliff.
 She will not let him rest. At his grave she draws a blood-red circle, binds his rising soul and drags
@@ -31,25 +37,33 @@ him back into his corpse. Everything after is told from her side:
 
 ## How it works
 
-Every frame is a pure function of time `t`, drawn on an HTML canvas at 1920×1080:
+Every frame is a pure function of time `t`. Shots are authored in 1920×1080 coordinates and drawn
+on an HTML canvas:
 
 1. **Scene** (`src/scenes1-4.js`, 68 shots).
-   - `env.js`: 2.5D painted environments built on a pinhole camera with depth fog — graveyards,
-     the manor, and one-point-perspective hall, crypt and ballroom.
-   - `portrait.js`: semi-realistic painted portraits with a turnable head model, chiaroscuro
-     shading and bezier hair locks.
-   - `rig.js`: full-body figures, dressed skeletons, ghosts, villagers, horses, carriage.
-   - `hands.js`: painted hands — living, gloved, corpse and bone.
+   - `env.js`: 2.5D environments built on a pinhole camera with depth fog — graveyards, the manor,
+     and one-point-perspective hall, crypt and ballroom.
+   - `portrait.js`: portraits with a turnable head model, chiaroscuro shading and hair locks. A
+     figure-scale mode fits heads into the full-body figures.
+   - `rig.js`: full-body figures, dressed skeletons, ghosts, villagers, horses, carriage, plus the
+     rim-light/outline/form-shading layer.
+   - `hands.js`: close-up hands — living, gloved, corpse and bone.
    - `draw.js`: effects such as chains, sigils, candles, lightning and particles.
-2. **Oil-paint pass** (`paint.js`).
-   - A summed-area-table Kuwahara filter turns the shapes into brush-like patches.
-   - On top go a slowly "boiling" brush-stroke texture, canvas weave and low-frequency colour
-     blotches.
-   - A soft-light colour grade is set per shot.
-3. **Finish** (`post.js`): bloom, flashes, vignette, film grain, screen shake, RGB split and glitch.
-4. **UI layer** (`ui.js`), drawn crisp after the paint pass.
-   - Ornate gold-framed message window with a painted cameo and typewriter lyrics.
-   - Name box, choice card, item banner and title menu.
+   - `core.js`: the weight helpers — springs, hit-stop, impact envelopes, squash & stretch, and
+     beat-snapped pose sequencing.
+2. **Pixel finish** (`pixel.js`, the default style).
+   - The shot is drawn at **640×360**, colour-graded and given a little bloom.
+   - It is then snapped to that shot's own palette with 8×8 Bayer dithering. Palettes are built
+     by `render/palettes.mjs`: k-means over sample frames, plus a few shared accent colours, saved
+     to `data/palettes.js`.
+   - Figures get 1-pixel sprite outlines and form shading.
+   - Transitions dissolve or fade through the dither pattern.
+   - The frame is upscaled 3× with hard pixel edges.
+3. **UI** (`ui.js`). Drawn on its own 640×360 layer: pixel fonts (DotGothic16, Pixelify Sans), gold
+   pixel frames, a quantised portrait cameo, typewriter lyrics, and dithered transparency.
+
+With `--style paint` (or `index.html?style=paint`), shots are instead drawn at full HD and finished
+by `paint.js` and `post.js`: a Kuwahara oil filter, brush-stroke and canvas textures, bloom and grain.
 
 Lyric timing (`data/timing.json`) was derived from the song itself:
 - beat/downbeat tracking and energy envelopes with librosa;
@@ -63,9 +77,11 @@ Each chorus lands on the full-band hit after its dropout.
 ```bash
 npm install                                     # Playwright (uses the system Chromium)
 open index.html                                 # or serve the folder: live preview player with audio + scrubber
-node render/render.mjs --out build/frames --q 0.95   # render all 5662 frames (≈25 min on 4 cores)
+node render/palettes.mjs                        # (re)build the per-shot pixel palettes -> data/palettes.js
+node render/render.mjs --out build/frames --q 0.95   # render all 5662 frames (~2.5 min on 4 cores)
 bash render/encode.sh                           # mux with audio -> build/Necromantical_MusicVideo_1080p.mp4
 node render/render.mjs --stills 36.2,80 --out build/stills   # PNG stills for review
+node render/render.mjs --style paint --out build/frames_paint   # the oil-paint version (~18 min)
 node render/render.mjs --test path/to/shots.js --stills 1 --out build/test   # render a scratch test timeline
 node render/check.mjs                           # print the shot timeline, flag gaps/overlaps
 ```
@@ -87,7 +103,7 @@ python3 analysis/build_timing.py $WD data/timing.json                      # han
 echo "window.TIMING = $(cat data/timing.json);" > data/timing.js              # what index.html loads
 ```
 
-Fonts: UnifrakturMaguntia, Cinzel, Cinzel Decorative, IM Fell English (+ SC)
-(Google Fonts, SIL Open Font License).
+Fonts: DotGothic16, Pixelify Sans, Silkscreen, VT323, UnifrakturMaguntia, Cinzel, Cinzel Decorative,
+IM Fell English (+ SC) (Google Fonts, SIL Open Font License).
 
-The earlier pixel-art (RPG Maker) version of the video is in the git history (commit `ee778b0`).
+The first, top-down RPG Maker-style version of the video is in the git history (commit `ee778b0`).

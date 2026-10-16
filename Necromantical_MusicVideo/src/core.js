@@ -3,9 +3,15 @@
 'use strict';
 const NM = (window.NM = window.NM || {});
 
-// Scenes are painted directly at full HD.
+// Shots are authored in 1920x1080 coordinates. The default "pixel" style draws them at 1/3
+// scale (640x360) and finishes them as pixel art; ?style=paint renders the full-HD oil-paint look.
 NM.W = 1920;
 NM.H = 1080;
+NM.STYLE = new URLSearchParams(location.search).get('style') === 'paint' ? 'paint' : 'pixel';
+NM.PIXEL = NM.STYLE === 'pixel';
+NM.RS = NM.PIXEL ? 1 / 3 : 1;        // render scale
+NM.RW = Math.round(NM.W * NM.RS);     // render resolution
+NM.RH = Math.round(NM.H * NM.RS);
 NM.PX = 1;
 NM.FW = NM.W * NM.PX; // 1920
 NM.FH = NM.H * NM.PX; // 1080
@@ -170,4 +176,45 @@ NM.canvas = function (w, h) {
   const c = document.createElement('canvas');
   c.width = Math.max(1, Math.round(w)); c.height = Math.max(1, Math.round(h));
   return c;
+};
+// offscreen layer at render resolution; beginLayer() clears it and applies the render scale.
+// Composite a layer back in shot coordinates with ctx.drawImage(layer, 0, 0, NM.W, NM.H).
+NM.layer = () => NM.canvas(NM.RW, NM.RH);
+NM.beginLayer = function (cv) {
+  const c = cv.getContext('2d');
+  c.setTransform(1, 0, 0, 1, 0, 0); c.globalAlpha = 1; c.globalCompositeOperation = 'source-over'; c.filter = 'none';
+  // reset drawing state so nothing leaks between uses of a pooled layer
+  c.fillStyle = '#000'; c.strokeStyle = '#000'; c.lineWidth = 1; c.lineCap = 'butt'; c.lineJoin = 'miter'; c.setLineDash([]);
+  c.shadowBlur = 0; c.shadowColor = 'rgba(0,0,0,0)'; c.imageSmoothingEnabled = true;
+  c.clearRect(0, 0, cv.width, cv.height);
+  c.setTransform(NM.RS, 0, 0, NM.RS, 0, 0);
+  return c;
+};
+
+// ---------- weight helpers ----------
+// hit-stop: local time freezes for `dur` after each hit (gives impacts a heavy, punchy feel)
+NM.hitStop = function (t, hits, dur = 0.08) {
+  let o = t;
+  for (const h of hits) if (t > h) o -= Math.min(t - h, dur);
+  return o;
+};
+// impact envelope: 1 at the hit, decaying over `len` seconds (0 before the hit)
+NM.impact = (t, hit, len = 0.4) => (t < hit || t > hit + len ? 0 : (1 - (t - hit) / len) ** 2);
+// squash & stretch about a ground point: k>0 squashes, k<0 stretches
+NM.squash = function (g, x, y, k) {
+  g.translate(x, y); g.scale(1 + 0.6 * k, 1 - k); g.translate(-x, -y);
+};
+// damped spring response to a step at time t0 (overshoots then settles) — for weighty arrivals
+NM.spring = (t, t0, freq = 9, damp = 5) => (t <= t0 ? 0 : 1 - Math.exp(-damp * (t - t0)) * Math.cos(freq * (t - t0)));
+// pose sequencing on the beat: snap from the previous pose to the current one with a spring.
+// poses: array of objects of numbers (or arrays of numbers); lag delays the response (a heavier follower)
+NM.poseAt = function (t, times, poses, lag = 0, freq = 12, damp = 6) {
+  const tt = t - lag, i = NM.lastIndexBefore(times, tt);
+  if (i < 0) return poses[0];
+  const n = poses.length, cur = poses[i % n], prev = poses[(i + n - 1) % n];
+  const k = NM.spring(tt, times[i], freq, damp);
+  const mix = (a, b) => (Array.isArray(a) ? a.map((v, j) => v + (b[j] - v) * k) : a + (b - a) * k);
+  const out = {};
+  for (const key of Object.keys(cur)) out[key] = mix(prev[key], cur[key]);
+  return out;
 };

@@ -259,15 +259,15 @@
     NM.manor(g, mx, my, s, t, { color: '#16131e', lit: o.lit || [1, 4, 7, 10, 12], litColor: '#ffb860', darkWin: '#0e0c14' });
     // stone texture + moonlight falloff across the facade (clipped to the building)
     NM.silhouette(g, 'rgba(0,0,0,0)', () => {});
-    const tmp = NM._manorTmp || (NM._manorTmp = NM.canvas(W, H));
-    const q = tmp.getContext('2d'); q.setTransform(1, 0, 0, 1, 0, 0); q.clearRect(0, 0, W, H);
+    const tmp = NM._manorTmp || (NM._manorTmp = NM.layer());
+    const q = NM.beginLayer(tmp);
     NM.manor(q, mx, my, s, t, { color: '#000', lit: [], darkWin: '#000' });
     q.globalCompositeOperation = 'source-in';
     q.fillStyle = q.createPattern(NM.A.stone, 'repeat'); q.fillRect(0, 0, W, H);
     const mg = q.createLinearGradient(mx - 600 * s, 0, mx + 600 * s, 0); mg.addColorStop(0, 'rgba(0,0,0,0.75)'); mg.addColorStop(1, 'rgba(120,110,170,0.25)');
     q.globalCompositeOperation = 'source-atop'; q.fillStyle = mg; q.fillRect(0, 0, W, H);
     q.globalCompositeOperation = 'source-over';
-    g.save(); g.globalCompositeOperation = 'overlay'; g.globalAlpha = 0.9; g.drawImage(tmp, 0, 0); g.restore();
+    g.save(); g.globalCompositeOperation = 'overlay'; g.globalAlpha = 0.9; g.drawImage(tmp, 0, 0, W, H); g.restore();
     // window glows
     for (const i of o.lit || [1, 4, 7, 10, 12]) { const w0 = NM.manorWin(i); glow(g, mx + w0.x * s, my + w0.y * s, 70 * s, '#ffaa50', 0.45); }
     NM.paintFog(g, t, my - 60 * s, 260, 0.3, '#6a6090', 16);

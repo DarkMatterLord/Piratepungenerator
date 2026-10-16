@@ -47,19 +47,60 @@
   };
 
   // ---------- rim light: paint an edge band on the side facing the light ----------
-  let rimA = null, rimB = null;
+  // In the pixel style the figure layer also gets form shading (darker away from the light and
+  // toward the feet) and a 1px sprite outline. Layers are pooled per nesting depth.
+  const rimPool = [];
+  let rimDepth = 0;
+  function maskAndBox(A, C) {
+    const w = A.width, h = A.height;
+    const img = A.getContext('2d').getImageData(0, 0, w, h), d = img.data;
+    const cg = C.getContext('2d'), out = cg.createImageData(w, h), o = out.data;
+    let x0 = w, y0 = h, x1 = -1, y1 = -1;
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const i = (y * w + x) * 4;
+      if (d[i + 3] > 120) { o[i + 3] = 255; if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+    }
+    cg.setTransform(1, 0, 0, 1, 0, 0); cg.putImageData(out, 0, 0);
+    return x1 < 0 ? null : { x0, y0, x1, y1 };
+  }
   // fn(ctx) draws the figure; light from direction (lx, ly) (unit-ish), width in px
-  NM.withRim = function (g, fn, col = '#bfcfff', lx = 1, ly = -0.4, width = 4, alpha = 0.8) {
-    if (!rimA) { rimA = canvas(W, H); rimB = canvas(W, H); }
-    const a = rimA.getContext('2d'), b = rimB.getContext('2d');
-    a.setTransform(1, 0, 0, 1, 0, 0); a.clearRect(0, 0, W, H);
-    a.save(); fn(a); a.restore();
-    g.drawImage(rimA, 0, 0); // the figure itself
-    b.setTransform(1, 0, 0, 1, 0, 0); b.globalCompositeOperation = 'copy'; b.drawImage(rimA, 0, 0);
-    b.globalCompositeOperation = 'source-in'; b.fillStyle = col; b.fillRect(0, 0, W, H);
-    b.globalCompositeOperation = 'destination-out'; b.drawImage(rimA, -lx * width, -ly * width);
-    b.globalCompositeOperation = 'source-over';
-    g.save(); g.globalCompositeOperation = 'screen'; g.globalAlpha = alpha; g.filter = 'blur(1.2px)'; g.drawImage(rimB, 0, 0); g.restore();
+  NM.withRim = function (g, fn, col = '#bfcfff', lx = 1, ly = -0.4, width = 4, alpha = 0.8, opt = {}) {
+    const P = rimPool[rimDepth] || (rimPool[rimDepth] = { a: NM.layer(), b: NM.layer(), c: NM.layer() });
+    rimDepth++;
+    try {
+      const A = P.a, B = P.b, C = P.c, RW = A.width, RH = A.height;
+      const a = NM.beginLayer(A);
+      a.save(); fn(a); a.restore();
+      if (NM.PIXEL) {
+        const bb = maskAndBox(A, C);
+        if (bb && opt.shade !== false) {
+          const ll = Math.hypot(lx, ly) || 1, ux = lx / ll, uy = ly / ll;
+          const cx = (bb.x0 + bb.x1) / 2, cy = (bb.y0 + bb.y1) / 2, hw = (bb.x1 - bb.x0) / 2 + 1, hh = (bb.y1 - bb.y0) / 2 + 1;
+          const ext = Math.abs(ux) * hw + Math.abs(uy) * hh;
+          a.save(); a.setTransform(1, 0, 0, 1, 0, 0); a.globalCompositeOperation = 'source-atop';
+          const gr = a.createLinearGradient(cx + ux * ext, cy + uy * ext, cx - ux * ext, cy - uy * ext);
+          gr.addColorStop(0, 'rgba(10,4,16,0)'); gr.addColorStop(0.5, 'rgba(10,4,16,0.12)'); gr.addColorStop(1, 'rgba(10,4,16,0.5)');
+          a.fillStyle = gr; a.fillRect(bb.x0, bb.y0, bb.x1 - bb.x0 + 1, bb.y1 - bb.y0 + 1);
+          const vg = a.createLinearGradient(0, cy, 0, bb.y1 + 1); vg.addColorStop(0, 'rgba(6,2,10,0)'); vg.addColorStop(1, 'rgba(6,2,10,0.38)');
+          a.fillStyle = vg; a.fillRect(bb.x0, cy, bb.x1 - bb.x0 + 1, bb.y1 - cy + 1);
+          a.restore();
+        }
+        if (bb && opt.outline !== false) {
+          const cg = C.getContext('2d'); cg.globalCompositeOperation = 'source-in'; cg.fillStyle = opt.outlineColor || '#07040a'; cg.fillRect(0, 0, RW, RH); cg.globalCompositeOperation = 'source-over';
+          const k = 1 / NM.RS;
+          for (const [dx, dy] of [[k, 0], [-k, 0], [0, k], [0, -k]]) g.drawImage(C, dx, dy, W, H);
+        }
+      }
+      g.drawImage(A, 0, 0, W, H); // the figure itself
+      const b = B.getContext('2d');
+      b.setTransform(1, 0, 0, 1, 0, 0); b.globalCompositeOperation = 'copy'; b.drawImage(A, 0, 0);
+      b.globalCompositeOperation = 'source-in'; b.fillStyle = col; b.fillRect(0, 0, RW, RH);
+      b.globalCompositeOperation = 'destination-out';
+      if (NM.PIXEL) { const wp = Math.max(1, Math.round(width * NM.RS)); b.drawImage(A, -Math.round(lx * wp), -Math.round(ly * wp)); }
+      else b.drawImage(A, -lx * width, -ly * width);
+      b.globalCompositeOperation = 'source-over';
+      g.save(); g.globalCompositeOperation = 'screen'; g.globalAlpha = alpha; if (!NM.PIXEL) g.filter = 'blur(1.2px)'; g.drawImage(B, 0, 0, W, H); g.restore();
+    } finally { rimDepth--; }
   };
 
   // tapered sleeve (shoulder puff -> elbow -> wrist); returns elbow/hand points like limb()
@@ -90,7 +131,8 @@
     const wind = pose.wind ?? 0.3;
     const sway = Math.sin(t * 1.6) * 1.2 * u + wind * 4 * u * (0.6 + 0.4 * Math.sin(t * 2.3));
     const twirl = pose.twirl || 0;
-    const lean = pose.lean || 0;
+    const idle = pose.idle ?? 1, iph = (opt.seed || 0) * 1.7;
+    const lean = (pose.lean || 0) + 0.03 * Math.sin(t * 0.8 + iph) * idle;
     const sit = pose.sit || 0;
     const kneel = pose.kneel || 0;
     const C = Object.assign({ dress: '#110d18', dressMid: '#231b30', dressHi: '#463a60', lace: '#d8cce2', skin: '#ecd3c6', glove: '#0e0b14', veil: 'rgba(34,24,50,0.66)' }, opt.colors || {});
@@ -99,26 +141,29 @@
     g.save();
     g.translate(x, y);
     g.scale(dir, 1);
+    // weight: contact shadow and breathing (chest rises, the figure settles)
+    if (!opt.noShadow) softShade(g, 0, 0, (28 + twirl * 12) * u, 5 * u, '#000000', 0.42);
+    if (idle) { const br = Math.sin(t * 2.1 + iph) * idle; g.scale(1 - 0.004 * br, 1 + 0.009 * br); }
     const drop = sit * 18 * u + kneel * 36 * u;
     const waistY = -55 * u + drop, shY = -79 * u + drop;
     const lx = lean * 10 * u;
     // ---- veil (long, translucent, behind everything) ----
     const vEnd = -44 * u - sway * 3 - wind * 20 * u;
-    const vg = g.createLinearGradient(lx, shY - 22 * u, vEnd, 0);
+    const vg = g.createLinearGradient(lx, shY - 17 * u, vEnd, 0);
     vg.addColorStop(0, C.veil); vg.addColorStop(1, 'rgba(34,24,50,0.12)');
     g.fillStyle = vg;
     g.beginPath();
-    g.moveTo(lx - 3 * u, shY - 22 * u);
+    g.moveTo(lx - 4 * u, shY - 16.5 * u);
     g.bezierCurveTo(lx - 18 * u - sway, shY + 10 * u, -32 * u - sway * 2, -34 * u, vEnd, -2 * u);
     g.quadraticCurveTo((vEnd - 14 * u) / 2, 4 * u, -14 * u - sway * 2, 0);
-    g.bezierCurveTo(-12 * u, -30 * u, lx - 4 * u, shY + 12 * u, lx + 5 * u, shY - 18 * u);
+    g.bezierCurveTo(-12 * u, -30 * u, lx - 4 * u, shY + 12 * u, lx + 3 * u, shY - 15 * u);
     g.closePath(); g.fill();
     g.strokeStyle = 'rgba(210,200,230,0.28)'; g.lineWidth = Math.max(1, 0.6 * u);
     g.beginPath(); g.moveTo(vEnd, -2 * u); g.quadraticCurveTo((vEnd - 14 * u) / 2, 4 * u, -14 * u - sway * 2, 0); g.stroke();
     // ---- long hair down the back ----
     for (let i = 0; i < 10; i++) {
       const f = i / 9;
-      const x0 = lx + (-5 + f * 9) * u, y0 = shY - 19 * u;
+      const x0 = lx + (-5 + f * 9) * u, y0 = shY - 16 * u;
       const ex = lx - (7 + f * 7) * u - sway * (1.2 + f * 0.6), ey = waistY + (6 + R0() * 12) * u;
       NM.hairLock(g, x0, y0, x0 - 5 * u, shY, ex + 4 * u, (shY + ey) / 2, ex, ey, 6.5 * u, 0.5 * u, HAIR, R0, i % 3 === 0 ? [0.1, 0.3, '#5a4f80'] : null);
     }
@@ -181,7 +226,14 @@
     g.strokeStyle = rgba(C.lace, 0.35); g.lineWidth = Math.max(1, 0.45 * u);
     for (let k = 0; k < 6; k++) { const yy = lerp(shY + 9 * u, waistY - 2 * u, k / 5); g.beginPath(); g.moveTo(lx + 1.5 * u, yy); g.lineTo(lx + 4.5 * u, yy + 2 * u); g.moveTo(lx + 4.5 * u, yy); g.lineTo(lx + 1.5 * u, yy + 2 * u); g.stroke(); }
     // high lace collar + cameo
-    g.fillStyle = rgba(C.lace, 0.85); g.beginPath(); g.moveTo(lx - 2.5 * u, shY - 3 * u); g.lineTo(lx + 3.5 * u, shY - 3.5 * u); g.lineTo(lx + 4.5 * u, shY + 2 * u); g.lineTo(lx - 3 * u, shY + 2 * u); g.closePath(); g.fill();
+    // ruffled high collar wrapping the throat
+    {
+      const cg = g.createLinearGradient(lx - 3.5 * u, 0, lx + 4.5 * u, 0); cg.addColorStop(0, rgba(C.lace, 0.45)); cg.addColorStop(0.6, rgba(C.lace, 0.8)); cg.addColorStop(1, rgba(C.lace, 0.55));
+      g.fillStyle = cg; g.beginPath(); g.moveTo(lx - 3.4 * u, shY + 1.6 * u);
+      for (let k = 0; k <= 6; k++) { const xx = lerp(lx - 3.4 * u, lx + 4.2 * u, k / 6); g.quadraticCurveTo(xx - 0.6 * u, shY - 4.6 * u, xx, shY - 3.2 * u - (k % 2) * 0.8 * u); }
+      g.lineTo(lx + 4.4 * u, shY + 1.6 * u); g.quadraticCurveTo(lx + 0.5 * u, shY + 3 * u, lx - 3.4 * u, shY + 1.6 * u); g.closePath(); g.fill();
+      g.fillStyle = 'rgba(10,6,14,0.35)'; g.fillRect(lx - 3.4 * u, shY - 0.4 * u, 7.8 * u, 0.7 * u);
+    }
     g.fillStyle = '#b0102a'; g.beginPath(); g.ellipse(lx + 4.6 * u, shY + 4 * u, 1.5 * u, 1.8 * u, 0, 0, TAU); g.fill();
     // ---- near arm (puffed sleeve) ----
     const aF = pose.armF || [0.25, 0.3];
@@ -195,13 +247,13 @@
       NM.glow(g, fb.hx, fb.hy, 15 * u * pose.glow, '#ff2a44', 0.6 * pose.glow);
     }
     // ---- head ----
-    const hs = 14.5 * u;
+    const hs = 13.6 * u;
     const chinY = shY - 3.4 * u;
     const eyeY = chinY - 83 * hs / 185;
     g.save();
     g.translate(lx + 1.2 * u, eyeY);
-    g.rotate(pose.headTilt || 0);
-    if (!opt.noHead) NM.paintIsolde(g, 0, 0, hs, pose.expr || 'cold', t, { yaw: pose.yaw ?? 0.34, body: false, e: Object.assign({ look: pose.look }, pose.e || {}), noBlink: pose.noBlink, light: pose.light ?? -0.6 });
+    g.rotate((pose.headTilt || 0) + 0.035 * Math.sin(t * 1.25 + iph) * idle);
+    if (!opt.noHead) NM.paintIsolde(g, 0, 0, hs, pose.expr || 'cold', t, { fig: true, yaw: pose.yaw ?? 0.5, body: false, e: Object.assign({ look: pose.look }, pose.e || {}), noBlink: pose.noBlink, light: pose.light ?? -0.6, ambient: opt.ambient, ambientA: opt.ambientA });
     g.restore();
     g.restore();
     return { hand: [x + dir * hX, y + hY], hand2: [x + dir * fb.hx, y + fb.hy], head: [x + dir * (lx + 1.2 * u), y + eyeY], u };
@@ -216,9 +268,12 @@
     g.save();
     g.translate(x, y);
     g.scale(dir, 1);
+    const idle = pose.idle ?? 1, iph = (opt.seed || 0) * 1.3 + 0.9;
+    if (!opt.noShadow) softShade(g, 0, 0, 22 * u, 4.5 * u, '#000000', 0.42);
+    if (idle) { const br = Math.sin(t * 1.9 + iph) * idle; g.scale(1 - 0.004 * br, 1 + 0.008 * br); }
     const kneel = pose.kneel || 0;
     const hipY = -50 * u + kneel * 20 * u;
-    const lean = pose.lean || 0;
+    const lean = (pose.lean || 0) + 0.025 * Math.sin(t * 0.7 + iph) * idle;
     const shY = hipY - 31 * u;
     const lx = lean * 12 * u;
     const lb = pose.legB || (kneel ? [0.15, -1.75] : [-0.12, 0.05]);
@@ -263,11 +318,11 @@
     const hX = nf.hx + nf.dx * 2.2 * u, hY = nf.hy + nf.dy * 2.2 * u;
     g.fillStyle = C.skin; g.beginPath(); g.ellipse(hX, hY, 2.4 * u, 3.1 * u, -Math.atan2(nf.dx, nf.dy), 0, TAU); g.fill();
     // head
-    const hs = 15 * u;
+    const hs = 14.2 * u;
     const chinY = shY - 4 * u;
     const eyeY = chinY - 83 * hs / 185;
-    g.save(); g.translate(lx + 1.5 * u, eyeY); g.rotate(pose.headTilt || 0);
-    if (!opt.noHead) NM.paintLucien(g, 0, 0, hs, pose.expr || (alive ? 'alive' : 'hollow'), t, { yaw: pose.yaw ?? 0.34, body: false, alive, e: pose.e || {}, noBlink: pose.noBlink, light: pose.light ?? -0.5 });
+    g.save(); g.translate(lx + 1.5 * u, eyeY); g.rotate((pose.headTilt || 0) + 0.03 * Math.sin(t * 1.1 + iph) * idle);
+    if (!opt.noHead) NM.paintLucien(g, 0, 0, hs, pose.expr || (alive ? 'alive' : 'hollow'), t, { fig: true, yaw: pose.yaw ?? 0.5, body: false, alive, e: pose.e || {}, noBlink: pose.noBlink, light: pose.light ?? -0.5, ambient: opt.ambient, ambientA: opt.ambientA });
     g.restore();
     g.restore();
     return { hand: [x + dir * hX, y + hY], hand2: [x + dir * fb.hx, y + fb.hy], head: [x + dir * (lx + 1.5 * u), y + eyeY], chest: [x + dir * (lx + 2 * u), y + shY + 8 * u], u };
