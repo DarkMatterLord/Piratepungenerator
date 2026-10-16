@@ -1,0 +1,13 @@
+{
+  "name": "necromantical-music-video",
+  "private": true,
+  "type": "module",
+  "description": "Procedurally animated RPG-Maker-horror style music video for 'Necromantical' (darkmatter96)",
+  "scripts": {
+    "frames": "node render/render.mjs --out build/frames",
+    "encode": "bash render/encode.sh"
+  },
+  "devDependencies": {
+    "playwright": "1.56.1"
+  }
+}
