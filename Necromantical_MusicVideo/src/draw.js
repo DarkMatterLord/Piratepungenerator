@@ -103,12 +103,12 @@
   NM.clouds = function (ctx, t, opt = {}) {
     const tex = opt.tint ? NM.tinted(NM.A.clouds, opt.tint) : NM.A.clouds;
     const y = opt.y ?? 0, h = opt.h ?? H * 0.6, sp = opt.speed ?? 12, a = opt.alpha ?? 0.5;
-    NM.band(ctx, tex, y, h, opt.tile ?? 640, (opt.offset ?? 0) + t * sp, a);
-    if (opt.flash) NM.band(ctx, NM.A.clouds, y, h, opt.tile ?? 640, (opt.offset ?? 0) + t * sp, opt.flash * 0.9, 'lighter');
+    NM.band(ctx, tex, y, h, opt.tile ?? 2200, (opt.offset ?? 0) + t * sp, a);
+    if (opt.flash) NM.band(ctx, NM.A.clouds, y, h, opt.tile ?? 2200, (opt.offset ?? 0) + t * sp, opt.flash * 0.9, 'lighter');
   };
   NM.fog = function (ctx, t, y, h, alpha = 0.5, speed = 20, offset = 0, tint = null) {
     const tex = tint ? NM.tinted(NM.A.fog, tint) : NM.A.fog;
-    NM.band(ctx, tex, y, h, 520, offset + t * speed, alpha);
+    NM.band(ctx, tex, y, h, 1800, offset + t * speed, alpha);
   };
 
   // ---------- terrain ----------
@@ -429,15 +429,25 @@
   // ---------- chain along a quadratic curve ----------
   // pts: [x0,y0, cx,cy, x1,y1]. link: link length. opt.glow -> crimson soul-chain
   NM.chain = function (ctx, pts, link, opt = {}) {
-    const [x0, y0, cx, cy, x1, y1] = pts;
-    const N = 80, P = [];
+    // 3 points = quadratic curve (start, control, end); more = polyline
+    const P = [];
     let L = 0;
-    for (let i = 0; i <= N; i++) {
-      const u = i / N, a = (1 - u) * (1 - u), b = 2 * (1 - u) * u, c = u * u;
-      const x = a * x0 + b * cx + c * x1, y = a * y0 + b * cy + c * y1;
-      if (i) L += Math.hypot(x - P[i - 1].x, y - P[i - 1].y);
-      P.push({ x, y, L });
+    if (pts.length > 6) {
+      for (let i = 0; i + 1 < pts.length; i += 2) {
+        const x = pts[i], y = pts[i + 1];
+        if (P.length) L += Math.hypot(x - P[P.length - 1].x, y - P[P.length - 1].y);
+        P.push({ x, y, L });
+      }
+    } else {
+      const [x0, y0, cx, cy, x1, y1] = pts;
+      for (let i = 0; i <= 80; i++) {
+        const u = i / 80, a = (1 - u) * (1 - u), b = 2 * (1 - u) * u, c = u * u;
+        const x = a * x0 + b * cx + c * x1, y = a * y0 + b * cy + c * y1;
+        if (i) L += Math.hypot(x - P[i - 1].x, y - P[i - 1].y);
+        P.push({ x, y, L });
+      }
     }
+    const N = P.length - 1;
     const upto = L * clamp(opt.reveal ?? 1);
     const step = link * 0.78;
     const col = opt.color || '#2a2a30';
@@ -547,7 +557,7 @@
     ctx.globalCompositeOperation = 'lighter';
     ctx.lineCap = 'round'; ctx.lineJoin = 'round';
     const col = opt.color || '#c9d4ff';
-    const bw = opt.w ?? 0.35;
+    const bw = opt.w ?? 1;
     for (const [lw0, a, c] of [[22, 0.08, col], [8, 0.25, col], [2.6, 0.95, '#ffffff']]) {
       const lw = Math.max(1, lw0 * bw);
       ctx.strokeStyle = c; ctx.globalAlpha = a * intensity;
@@ -724,7 +734,7 @@
         ctx.translate(cx + cw / 2, y + jitter);
         ctx.globalAlpha = a * (opt.alpha ?? 1);
         ctx.shadowColor = opt.shadow || 'rgba(255,20,50,0.9)';
-        ctx.shadowBlur = (opt.blur ?? 8) * glowA;
+        ctx.shadowBlur = (opt.blur ?? 30) * glowA;
         ctx.fillStyle = opt.color || '#e8122f';
         ctx.fillText(ch, 0, 0);
         ctx.shadowBlur = 0;
@@ -776,6 +786,20 @@
 
   // rain over the whole frame
   NM.rain = function (ctx, t, amt = 1, seed = 3, color = '#8d9cc4') {
-    NM.particles(ctx, t, { n: Math.floor(160 * amt), seed, kind: 'streak', vx: -70, vy: 430, len: 9, size: [1.6, 2.2], alpha: 0.45, color, x: -30, y: -30, w: W + 80, h: H + 60 });
+    NM.particles(ctx, t, { n: Math.floor(260 * amt), seed, kind: 'streak', vx: -260, vy: 1700, len: 36, size: [1.4, 2.6], alpha: 0.32, color, x: -100, y: -100, w: W + 300, h: H + 200 });
+  };
+
+  // draw something into a temp layer, then flood it with one colour (silhouette)
+  let silC = null;
+  NM.silhouette = function (g, color, fn, rim) {
+    if (!silC) silC = NM.canvas(W, H);
+    const s = silC.getContext('2d');
+    s.setTransform(1, 0, 0, 1, 0, 0); s.globalCompositeOperation = 'source-over'; s.clearRect(0, 0, W, H);
+    s.save(); fn(s); s.restore();
+    s.globalCompositeOperation = 'source-in';
+    s.fillStyle = color; s.fillRect(0, 0, W, H);
+    s.globalCompositeOperation = 'source-over';
+    if (rim) { g.save(); g.globalAlpha = rim.a ?? 1; g.drawImage(silC, rim.dx ?? -1, rim.dy ?? 0); g.restore(); }
+    g.drawImage(silC, 0, 0);
   };
 })();

@@ -3,10 +3,10 @@
 'use strict';
 const NM = (window.NM = window.NM || {});
 
-// Scenes are drawn at a low "game" resolution and upscaled 4x with hard pixels.
-NM.W = 480;
-NM.H = 270;
-NM.PX = 4;
+// Scenes are painted directly at full HD.
+NM.W = 1920;
+NM.H = 1080;
+NM.PX = 1;
 NM.FW = NM.W * NM.PX; // 1920
 NM.FH = NM.H * NM.PX; // 1080
 NM.BAR = 0;

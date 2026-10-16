@@ -29,14 +29,13 @@
 </div>
 <script src="data/timing.js"></script>
 <script src="src/core.js"></script>
-<script src="src/pixel.js"></script>
 <script src="src/assets.js"></script>
+<script src="src/paint.js"></script>
 <script src="src/draw.js"></script>
-<script src="src/anime.js"></script>
-<script src="src/sprites.js"></script>
-<script src="src/tiles.js"></script>
+<script src="src/portrait.js"></script>
 <script src="src/rig.js"></script>
-<script src="src/maps.js"></script>
+<script src="src/hands.js"></script>
+<script src="src/env.js"></script>
 <script src="src/ui.js"></script>
 <script src="src/main.js"></script>
 <script src="src/post.js"></script>
@@ -44,6 +43,10 @@
 <script src="src/scenes2.js"></script>
 <script src="src/scenes3.js"></script>
 <script src="src/scenes4.js"></script>
+<script>
+  // dev: ?test=path/to/shots.js replaces the timeline with a test script
+  { const tp = new URLSearchParams(location.search).get('test'); if (tp && /^[\w\/.-]+\.js$/.test(tp)) { NM.SHOTS.length = 0; document.write(`<script src="${tp}"><\/script>`); } }
+</script>
 <script>
   'use strict';
   const params = new URLSearchParams(location.search);
@@ -53,10 +56,10 @@
   const cvs = document.getElementById('c');
   window.NM_READY = (async () => {
     const fams = ['40px "IM Fell English"', 'italic 40px "IM Fell English"', '40px "IM Fell English SC"',
-      '40px "UnifrakturMaguntia"', '40px "Cinzel"', '700 40px "Cinzel"', '40px "Cinzel Decorative"', '700 40px "Cinzel Decorative"',
-      '16px "DotGothic16"', '16px "Pixelify Sans"', '700 16px "Pixelify Sans"', '16px "VT323"', '8px "Silkscreen"', '700 8px "Silkscreen"'];
+      '40px "UnifrakturMaguntia"', '40px "Cinzel"', '700 40px "Cinzel"', '40px "Cinzel Decorative"', '700 40px "Cinzel Decorative"'];
     await Promise.all(fams.map((f) => document.fonts.load(f)));
     NM.buildAssets();
+    NM.buildPaintTextures();
     NM.initBuffers(cvs);
     NM.initPost();
     if (NM.prepare) NM.prepare();

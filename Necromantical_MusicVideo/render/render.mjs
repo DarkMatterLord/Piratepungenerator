@@ -29,7 +29,7 @@ const server = http.createServer((req, res) => {
   fs.createReadStream(p).pipe(res);
 });
 await new Promise((r) => server.listen(0, '127.0.0.1', r));
-const url = `http://127.0.0.1:${server.address().port}/index.html?render=1&lyrics=${lyrics}`;
+const url = `http://127.0.0.1:${server.address().port}/index.html?render=1&lyrics=${lyrics}${args.test ? '&test=' + encodeURIComponent(args.test) : ''}`;
 
 const browser = await chromium.launch({ args: ['--disable-gpu', '--disable-dev-shm-usage', '--js-flags=--max-old-space-size=2048'] });
 

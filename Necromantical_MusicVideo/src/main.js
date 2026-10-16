@@ -1,24 +1,24 @@
 // Necromantical — timeline, shot compositing and frame entry point.
-// Pipeline per frame: shot(s) -> 480x270 "game" canvas -> palette quantize + dither
-//   -> UI layer (message window etc.) -> 4x nearest-neighbour upscale -> CRT finish.
+// Pipeline per frame: shot(s) -> 1920x1080 scene canvas -> oil-paint pass (Kuwahara + brush
+//   strokes + canvas) -> colour grade -> finish (bloom, flash, vignette, grain) -> UI layer.
 'use strict';
 (function () {
-  const { clamp, canvas, W, H, FW, FH, PX } = NM;
+  const { clamp, canvas, W, H } = NM;
 
   // opts.in: { type: 'fade' | 'black' | 'white' | 'red', dur }   transition into this shot
   // opts.out: { dur, color }                                       fade out at the end of this shot
+  // opts.grade / opts.paint: per-shot colour grade and paint-filter settings
   NM.SHOTS = [];
   NM.shot = function (start, end, draw, opts = {}) {
-    NM.SHOTS.push({ start, end, draw, in: opts.in || null, out: opts.out || null, name: opts.name || '', pal: opts.pal || 'night', ui: opts.ui });
+    NM.SHOTS.push({ start, end, draw, in: opts.in || null, out: opts.out || null, name: opts.name || '', ui: opts.ui, grade: opts.grade, paint: opts.paint });
   };
 
-  let lo, bufA, bufB, uiC, main;
+  let scene, bufA, bufB, main;
   NM.initBuffers = function (mainCanvas) {
     main = mainCanvas;
-    lo = canvas(W, H);
+    scene = canvas(W, H);
     bufA = canvas(W, H);
     bufB = canvas(W, H);
-    uiC = canvas(W, H);
   };
 
   function shotIndexAt(t) {
@@ -30,9 +30,11 @@
 
   function newPost(shot) {
     return {
-      pal: shot ? shot.pal : 'night', dither: 1, flash: 0, flashColor: '#ffffff', tint: null,
-      shake: 0, glitch: 0, ui: shot && shot.ui !== undefined ? shot.ui : 'msg', face: null, name: 'Isolde',
-      bloom: 0.22, scan: 1, vignette: 1, quantize: true, chroma: 0, extraUI: null,
+      flash: 0, flashColor: '#ffffff', shake: 0, glitch: 0, chroma: 0,
+      ui: shot && shot.ui !== undefined ? shot.ui : 'msg', face: null, name: 'Isolde',
+      bloom: 0.38, vignette: 1, grain: 0.06, extraUI: null,
+      paint: Object.assign({ r: 6, sharp: 2, strokes: 0.6, weave: 0.22, blotch: 0.32 }, shot && shot.paint),
+      grade: shot && shot.grade !== undefined ? shot.grade : { shadow: '#140a1c', light: '#e8b48a', amount: 0.35 },
     };
   }
 
@@ -44,18 +46,14 @@
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.globalAlpha = 1;
     ctx.globalCompositeOperation = 'source-over';
-    ctx.imageSmoothingEnabled = false;
+    ctx.imageSmoothingEnabled = true;
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, W, H);
     shot.draw(ctx, S);
     ctx.restore();
     if (shot.out) {
       const k = clamp((t - (shot.end - shot.out.dur)) / shot.out.dur);
-      if (k > 0) { ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = shot.out.color || '#000'; ctx.globalAlpha = k; ctx.fillRect(0, 0, W, H); ctx.restore(); }
-    }
-    if (post.tint) {
-      ctx.save(); ctx.globalCompositeOperation = post.tint.mode || 'multiply'; ctx.globalAlpha = clamp(post.tint.a ?? 1);
-      ctx.fillStyle = post.tint.color; ctx.fillRect(0, 0, W, H); ctx.restore();
+      if (k > 0) { ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = shot.out.color || '#000'; ctx.globalAlpha = NM.ease.inOutSine(k); ctx.fillRect(0, 0, W, H); ctx.restore(); }
     }
   }
 
@@ -63,7 +61,7 @@
     const i = shotIndexAt(t);
     const shot = i >= 0 ? NM.SHOTS[i] : null;
     const post = newPost(shot);
-    const g = lo.getContext('2d');
+    const g = scene.getContext('2d');
     g.setTransform(1, 0, 0, 1, 0, 0);
     if (!shot) {
       g.fillStyle = '#000'; g.fillRect(0, 0, W, H);
@@ -72,41 +70,31 @@
       if (tin && t < shot.start + tin.dur) {
         const k = clamp((t - shot.start) / tin.dur);
         if (tin.type === 'fade' && i > 0) {
-          const prevPost = newPost(NM.SHOTS[i - 1]);
-          drawShot(bufA, NM.SHOTS[i - 1], t, prevPost);
+          drawShot(bufA, NM.SHOTS[i - 1], t, newPost(NM.SHOTS[i - 1]));
           drawShot(bufB, shot, t, post);
-          // stepped dissolve (RPG Maker style) — quantized afterwards with the incoming palette
           g.globalAlpha = 1; g.drawImage(bufA, 0, 0);
-          g.globalAlpha = Math.round(NM.ease.inOutSine(k) * 8) / 8; g.drawImage(bufB, 0, 0);
+          g.globalAlpha = NM.ease.inOutSine(k); g.drawImage(bufB, 0, 0);
           g.globalAlpha = 1;
-          if (k < 0.5) post.pal = prevPost.pal;
         } else {
-          drawShot(lo, shot, t, post);
+          drawShot(scene, shot, t, post);
           if (tin.type === 'black') {
-            g.fillStyle = '#000'; g.globalAlpha = Math.round((1 - NM.ease.inOutSine(k)) * 10) / 10; g.fillRect(0, 0, W, H); g.globalAlpha = 1;
+            g.fillStyle = '#000'; g.globalAlpha = 1 - NM.ease.inOutSine(k); g.fillRect(0, 0, W, H); g.globalAlpha = 1;
           } else if (tin.type === 'white' || tin.type === 'red') {
             post.flash = Math.max(post.flash, (1 - k) ** 1.5);
-            post.flashColor = tin.type === 'white' ? '#ffffff' : '#ff2040';
+            post.flashColor = tin.type === 'white' ? '#fff4e8' : '#ff2040';
           }
         }
       } else {
-        drawShot(lo, shot, t, post);
+        drawShot(scene, shot, t, post);
       }
     }
-    // screen flash (pre-quantize so it dithers like the real thing)
-    if (post.flash > 0.01) {
-      g.save(); g.globalCompositeOperation = 'source-over'; g.globalAlpha = clamp(post.flash); g.fillStyle = post.flashColor; g.fillRect(0, 0, W, H); g.restore();
-    }
-    if (post.quantize) NM.quantize(lo, post.pal, post.dither);
-    if (post.glitch > 0) NM.glitch(lo, t, post.glitch);
-
-    // UI layer (not palette-quantized; hard alpha so text stays crisp)
-    const ug = uiC.getContext('2d');
-    ug.setTransform(1, 0, 0, 1, 0, 0);
-    ug.clearRect(0, 0, W, H);
-    const drewUI = NM.drawUI(ug, t, post);
-    if (drewUI) { NM.hardAlpha(uiC); g.drawImage(uiC, 0, 0); }
-
-    NM.finish(main, lo, t, post);
+    NM.paintPass(scene, t, post);
+    NM.grade(g, post.grade);
+    NM.finish(main, scene, t, post);
+    // crisp UI on top of the painting
+    const mg = main.getContext('2d');
+    mg.save(); mg.setTransform(1, 0, 0, 1, 0, 0);
+    NM.drawUI(mg, t, post);
+    mg.restore();
   };
 })();

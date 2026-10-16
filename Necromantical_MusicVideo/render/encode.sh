@@ -5,12 +5,12 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 FRAMES="${1:-build/frames}"
 OUT="${2:-build/Necromantical_MusicVideo_1080p.mp4}"
-CRF="${3:-20}"
+CRF="${3:-18}"
 ffmpeg -y -hide_banner -loglevel warning -stats \
   -framerate 30 -i "$FRAMES/f_%06d.jpg" \
   -i audio/Necromantical.mp3 \
   -map 0:v -map 1:a \
-  -c:v libx264 -preset slow -crf "$CRF" -tune animation -pix_fmt yuv420p \
+  -c:v libx264 -preset slow -crf "$CRF" -tune film -pix_fmt yuv420p \
   -c:a aac -b:a 256k \
   -metadata title="Necromantical (Music Video)" -metadata artist="darkmatter96" \
   -shortest -movflags +faststart "$OUT"

@@ -1,8 +1,29 @@
-// Necromantical — scenes 0:36–1:18  (Chorus 1, interlude walk, Verse 2, Pre-Chorus 2)
+// Necromantical (painted) — scenes 0:36–1:18  (Chorus 1, the manor, Verse 2, Pre-Chorus 2)
 'use strict';
 (function () {
-  const { clamp, lerp, range, ease, TAU, W, H, C, glow, hash1, noise1 } = NM;
-  const T = 16;
+  const { clamp, lerp, range, ease, TAU, W, H, glow, hash1, noise1, rgba } = NM;
+  const softShade = (...a) => NM.softShade(...a);
+
+  // ===================== helpers =====================
+  // big title slam (logo crisp in the UI layer; crimson smoke + sigil painted)
+  NM.titleSlamBG = function (g, t, lt) {
+    NM.skyGrad(g, [[0, '#0a0206'], [1, '#2a060e']]);
+    glow(g, W / 2, H * 0.45, 1100, '#a3122a', 0.45);
+    NM.band(g, NM.tinted(NM.A.clouds, '#6a0a18'), 0, H, 2200, t * 80, 0.55);
+    NM.sigil(g, W / 2, H * 0.45, 380 + lt * 80, t, 1, { squash: 1, width: 2.4, alpha: 0.6, color: '#ff2a44', runes: 36, glowA: 0.4 });
+  };
+  NM.titleSlamUI = function (u, lt, y = 520) {
+    const k = ease.outBack(clamp(lt * 4));
+    u.save(); u.translate(W / 2, y); u.scale(0.6 + 0.4 * k, 0.6 + 0.4 * k); u.translate(-W / 2, -y);
+    NM.titleLogo(u, clamp(lt * 5), y);
+    // blood drips from the letters
+    u.fillStyle = '#9a0a1e';
+    for (let i = 0; i < 12; i++) {
+      const x = W / 2 - 600 + i * 104 + hash1(i * 7) * 50, len = clamp(lt * 1.3 - hash1(i) * 0.3) * (40 + hash1(i * 3) * 120);
+      if (len > 0) { u.fillRect(x, y + 20, 6, len); u.beginPath(); u.arc(x + 3, y + 20 + len, 6, 0, TAU); u.fill(); }
+    }
+    u.restore();
+  };
 
   // silhouette head in profile; lips anchored at (lx, ly); dir +1 faces right
   NM.profileHead = function (q, lx, ly, sz, dir, tilt, who) {
@@ -17,521 +38,455 @@
     q.lineTo(-2, 34); q.lineTo(-4, 60); q.lineTo(-24, 60); q.lineTo(-26, 30);
     q.quadraticCurveTo(-44, 20, -46, -8);
     q.closePath(); q.fill();
-    if (who === 'lucien') { // messy hair tufts
+    if (who === 'lucien') {
       q.beginPath(); q.moveTo(-40, -30); q.lineTo(-56, -40); q.lineTo(-42, -46); q.lineTo(-50, -60); q.lineTo(-30, -58); q.lineTo(-28, -74); q.lineTo(-10, -64); q.lineTo(4, -76); q.lineTo(12, -62); q.lineTo(30, -66); q.lineTo(30, -50); q.closePath(); q.fill();
-    } else { // hair crown with the rose ornament
-      q.beginPath(); q.ellipse(-12, -48, 30, 20, -0.3, 0, NM.TAU); q.fill();
-      q.beginPath(); q.arc(-26, -64, 9, 0, NM.TAU); q.fill();
+    } else {
+      q.beginPath(); q.ellipse(-12, -48, 30, 20, -0.3, 0, TAU); q.fill();
+      q.beginPath(); q.arc(-26, -64, 9, 0, TAU); q.fill();
     }
     q.restore();
   };
 
-  // big title slam used on every chorus downbeat
-  NM.titleSlam = function (g, t, lt, opt = {}) {
-    g.fillStyle = opt.bg || '#0e0709'; g.fillRect(0, 0, W, H);
-    NM.sigil(g, 240, 100, 90 + lt * 20, t, 1, { squash: 1, width: 0.4, alpha: 0.55, color: '#ff2040', runes: 28, glowA: 0.35 });
-    const k = ease.outBack(clamp(lt * 4));
-    g.save();
-    g.translate(240, 112); g.scale(0.6 + 0.4 * k, 0.6 + 0.4 * k);
-    g.font = '64px "UnifrakturMaguntia"'; g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.lineJoin = 'round'; g.lineWidth = 6; g.strokeStyle = '#000'; g.strokeText('Necromantical', 0, 0);
-    const lg = g.createLinearGradient(0, -30, 0, 30); lg.addColorStop(0, '#fde4d6'); lg.addColorStop(0.5, '#d0554f'); lg.addColorStop(1, '#561d25');
-    g.fillStyle = lg; g.fillText('Necromantical', 0, 0);
-    // blood drips from the letters
-    g.fillStyle = '#a8353a';
-    for (let i = 0; i < 9; i++) {
-      const x = -180 + i * 45 + hash1(i * 7) * 20, len = clamp(lt * 1.2 - hash1(i) * 0.3) * (14 + hash1(i * 3) * 30);
-      if (len > 0) { g.fillRect(x, 18, 2, len); g.fillRect(x - 1, 18 + len, 4, 3); }
-    }
+  // painted black cat (sitting)
+  NM.paintCat = function (g, x, y, s, t, o = {}) {
+    g.save(); g.translate(x, y); g.scale((o.dir ?? 1) * s / 100, s / 100);
+    g.fillStyle = '#060508';
+    g.beginPath(); g.ellipse(0, -30, 26, 32, 0, 0, TAU); g.fill();
+    g.beginPath(); g.ellipse(4, -70, 17, 15, 0, 0, TAU); g.fill();
+    g.beginPath(); g.moveTo(-10, -78); g.lineTo(-8, -98); g.lineTo(2, -82); g.fill();
+    g.beginPath(); g.moveTo(8, -82); g.lineTo(18, -98); g.lineTo(20, -76); g.fill();
+    g.lineWidth = 7; g.lineCap = 'round'; g.strokeStyle = '#060508';
+    const tw = Math.sin(t * 2) * 8;
+    g.beginPath(); g.moveTo(-20, -8); g.bezierCurveTo(-50, 0, -50, -40 + tw, -36, -56 + tw); g.stroke();
+    g.strokeStyle = 'rgba(120,110,160,0.35)'; g.lineWidth = 2; g.beginPath(); g.ellipse(0, -30, 26, 32, 0, -1.2, 0.2); g.stroke();
+    const blink = ((t + 0.7) % 3.7) < 0.12;
+    if (!blink) for (const ex of [-2, 12]) { g.fillStyle = '#ffd04a'; g.beginPath(); g.ellipse(ex, -71, 3.6, 2.6, 0, 0, TAU); g.fill(); g.fillStyle = '#000'; g.fillRect(ex - 0.6, -73.5, 1.2, 5); NM.glow(g, ex, -71, 10, '#ffcf4a', 0.6); }
     g.restore();
+  };
+
+  // wrought-iron gate (two leaves), open 0..1
+  NM.ironGate = function (g, cx, y, w, h, open, o = {}) {
+    for (const side of [-1, 1]) {
+      g.save(); g.translate(cx + side * w / 2, y); g.scale(side * Math.max(0.08, 1 - open * 0.85), 1);
+      g.strokeStyle = o.color || '#08070a'; g.fillStyle = o.color || '#08070a'; g.lineWidth = 7;
+      for (let i = 0; i <= 8; i++) { const x = -(i / 8) * (w / 2); g.beginPath(); g.moveTo(x, 0); g.lineTo(x, -h + Math.abs(i - 4) * 12); g.stroke(); g.beginPath(); g.moveTo(x - 9, -h + Math.abs(i - 4) * 12 + 4); g.lineTo(x, -h + Math.abs(i - 4) * 12 - 22); g.lineTo(x + 9, -h + Math.abs(i - 4) * 12 + 4); g.fill(); }
+      g.lineWidth = 9; g.beginPath(); g.moveTo(0, -h * 0.12); g.lineTo(-w / 2, -h * 0.12); g.moveTo(0, -h * 0.72); g.lineTo(-w / 2, -h * 0.72); g.stroke();
+      g.lineWidth = 4; for (let i = 0; i < 4; i++) { g.beginPath(); g.arc(-w / 16 - i * w / 8, -h * 0.62, w / 22, 0, TAU); g.stroke(); }
+      g.restore();
+    }
+    // pillars
+    for (const side of [-1, 1]) {
+      const px = cx + side * (w / 2 + 50);
+      const pg = g.createLinearGradient(px - 50, 0, px + 50, 0); pg.addColorStop(0, '#0e0c12'); pg.addColorStop(0.6, '#2a2836'); pg.addColorStop(1, '#0a080c');
+      g.fillStyle = pg; g.fillRect(px - 50, y - h - 60, 100, h + 60); g.fillRect(px - 62, y - h - 80, 124, 26);
+    }
   };
 
   // ======================================================================
   // CHORUS 1  36.15 – 48.40
   // ======================================================================
   NM.shot(36.15, 37.0, (g, S) => {
-    NM.titleSlam(g, S.t, S.lt);
-    S.post.shake = S.lt < 0.35 ? 3 : 0;
+    NM.titleSlamBG(g, S.t, S.lt);
+    S.post.extraUI = [(u) => NM.titleSlamUI(u, S.lt)];
+    S.post.shake = S.lt < 0.35 ? 1.5 : 0;
     S.post.chroma = clamp(1 - S.lt * 2.5);
-  }, { pal: 'blood', name: 'c1-title', in: { type: 'red', dur: 0.35 } });
+  }, { name: 'c1-title', in: { type: 'red', dur: 0.35 } });
 
-  // 37.00 – 39.45  the grip: his hand bursts from the soil, hers seizes it
+  // 37.00 – 39.45 the grip
   NM.shot(37.0, 39.45, (g, S) => {
     const t = S.t, lt = S.lt;
-    NM.skyGrad(g, [[0, '#1f0e12'], [0.7, '#561d25'], [1, '#7c2630']]);
-    NM.moon(g, 380, 60, 40, { blood: 0.4, halo: 0.7 });
-    glow(g, 240, 176, 150, '#d0554f', 0.35 + NM.beat(t, 4) * 0.25);
-    // grave soil
-    g.fillStyle = '#35151b'; g.fillRect(0, 176, W, 100);
-    g.fillStyle = '#561d25'; g.fillRect(0, 176, W, 3);
-    for (let i = 0; i < 50; i++) { g.fillStyle = i % 3 ? '#1f0e12' : '#561d25'; g.fillRect(hash1(i) * W, 180 + hash1(i * 3) * 20, 2 + hash1(i * 5) * 6, 2); }
-    const rise = ease.outBack(clamp(lt / 0.45));
-    const grip = range(0.95, 1.35, lt);
-    // --- his arm: pale, half-flesh, half-bone ---
-    const wx = 236, wy = lerp(260, 118, rise);
-    g.save(); g.beginPath(); g.rect(0, 0, W, 178); g.clip();
-    g.strokeStyle = '#f6b9a6'; g.lineCap = 'round';
-    g.lineWidth = 16; g.beginPath(); g.moveTo(wx - 6, wy + 120); g.lineTo(wx, wy + 14); g.stroke();
-    g.strokeStyle = '#ec8a7a'; g.lineWidth = 4; g.beginPath(); g.moveTo(wx + 4, wy + 120); g.lineTo(wx + 5, wy + 16); g.stroke();
-    g.strokeStyle = '#7c2630'; g.lineWidth = 1; g.beginPath(); g.moveTo(wx - 7, wy + 70); g.lineTo(wx - 2, wy + 40); g.moveTo(wx - 3, wy + 60); g.lineTo(wx + 2, wy + 52); g.stroke();
-    // palm + fingers (spread, then curling round her hand)
-    g.fillStyle = '#fde4d6'; g.beginPath(); g.ellipse(wx + 1, wy + 4, 11, 12, 0, 0, TAU); g.fill();
-    const fingers = [[-0.55, 22], [-0.18, 26], [0.15, 25], [0.45, 20]];
-    fingers.forEach(([a, len], i) => {
-      const aa = a * (1 - grip * 0.4) - grip * 0.25, L1 = len * 0.55, L2 = len * 0.5;
-      const bx = wx + Math.sin(aa) * 9, by = wy - 4;
-      const mx = bx + Math.sin(aa) * L1, my = by - Math.cos(aa) * L1;
-      const a2 = aa + grip * 1.4;
-      const ex = mx + Math.sin(a2) * L2, ey = my - Math.cos(a2) * L2;
-      g.strokeStyle = '#fde4d6'; g.lineWidth = 5; g.beginPath(); g.moveTo(bx, by); g.lineTo(mx, my); g.lineTo(ex, ey); g.stroke();
-      g.strokeStyle = '#a8353a'; g.lineWidth = 1; g.beginPath(); g.moveTo(bx, by); g.lineTo(mx, my); g.stroke();
-      g.fillStyle = '#7c2630'; g.fillRect(Math.round(mx) - 1, Math.round(my) - 1, 2, 2);
-    });
-    g.strokeStyle = '#fde4d6'; g.lineWidth = 6; g.beginPath(); g.moveTo(wx - 8, wy + 6); g.lineTo(wx - 18, wy - 6 + grip * 4); g.stroke();
+    const zoom = 1 + lt * 0.035;
+    g.save(); g.translate(W / 2, H * 0.45); g.scale(zoom, zoom); g.translate(-W / 2, -H * 0.45);
+    NM.paintSky(g, t, { top: '#14060a', mid: '#3a1018', low: '#6a1a24', moon: { x: 1480, y: 300, r: 190, blood: 0.6 }, cloudDark: '#1e0810', cloudLight: '#ff8a8a', speed: 10 });
+    glow(g, 900, 640, 760, '#d0554f', 0.3 + NM.beat(t, 4) * 0.2);
+    NM.paintRidge(g, 3, 770, 50, 0.004, '#1a0a0e', '#6a2a30');
+    // a leaning headstone and the grave soil
+    g.save(); g.translate(330, 800); g.rotate(-0.12);
+    const hg = g.createLinearGradient(-110, 0, 110, 0); hg.addColorStop(0, '#2a1a20'); hg.addColorStop(0.6, '#4a3238'); hg.addColorStop(1, '#1a0c10');
+    g.fillStyle = hg; g.beginPath(); g.moveTo(-110, 20); g.lineTo(-110, -300); g.quadraticCurveTo(-110, -420, 0, -420); g.quadraticCurveTo(110, -420, 110, -300); g.lineTo(110, 20); g.closePath(); g.fill();
+    g.strokeStyle = 'rgba(10,4,6,0.6)'; g.lineWidth = 3; g.beginPath(); g.moveTo(-40, -380); g.lineTo(-10, -300); g.lineTo(-30, -240); g.stroke();
+    g.fillStyle = 'rgba(20,8,10,0.75)'; g.font = 'italic 30px "IM Fell English"'; g.textAlign = 'center'; g.fillText('L. A.', 0, -300); g.fillText('1849 – 1878', 0, -260);
     g.restore();
-    // dirt burst
-    NM.particles(g, lt, { n: 40, seed: 11, kind: 'dot', x: 170, y: 90, w: 140, h: 90, vx: 0, vy: 70, size: [1, 2.6], color: '#1f0e12', alpha: 1 - clamp(lt / 1.2) });
-    // --- her arm: black sleeve from top right, lace cuff, gloved hand with a crimson ring ---
-    const reach = ease.outCubic(clamp((lt - 0.45) / 0.6));
-    const hx = lerp(420, 268, reach), hy = lerp(-20, 86, reach);
-    g.lineCap = 'round';
-    g.strokeStyle = '#ec8a7a'; g.lineWidth = 26; g.beginPath(); g.moveTo(hx + 210, hy - 160); g.lineTo(hx + 26, hy - 20); g.stroke();
-    g.strokeStyle = '#0e0709'; g.lineWidth = 22; g.beginPath(); g.moveTo(hx + 212, hy - 163); g.lineTo(hx + 28, hy - 23); g.stroke();
-    // lace cuff
-    for (let k = -3; k <= 3; k++) { g.fillStyle = '#fde4d6'; g.beginPath(); g.arc(hx + 20 + k * 3.6, hy - 14 + k * 3.2, 3, 0, TAU); g.fill(); }
-    // glove
-    g.fillStyle = '#1f0e12'; g.beginPath(); g.ellipse(hx + 6, hy - 2, 13, 11, -0.65, 0, TAU); g.fill();
-    g.strokeStyle = '#1f0e12'; g.lineWidth = 6;
-    const gf = [[-0.9, 24], [-0.55, 27], [-0.25, 25], [0.1, 20]];
-    gf.forEach(([a, len]) => {
-      const aa = Math.PI + 0.75 + a * 0.5 + grip * 0.3;
-      const bx = hx + 2, by = hy + 4;
-      const ex = bx + Math.sin(aa) * len * (1 - grip * 0.35), ey = by - Math.cos(aa) * len * (1 - grip * 0.35);
-      g.beginPath(); g.moveTo(bx, by); g.lineTo(ex, ey); g.stroke();
-    });
-    g.strokeStyle = '#d0554f'; g.lineWidth = 1; g.beginPath(); g.ellipse(hx + 6, hy - 2, 13, 11, -0.65, 3.6, 5.4); g.stroke();
-    g.fillStyle = '#ff3a52'; g.fillRect(Math.round(hx - 6), Math.round(hy + 10), 3, 3);
-    glow(g, hx - 5, hy + 11, 8, '#ff3a52', 0.8);
-    if (grip > 0) glow(g, 250, 100, 70 * grip, '#ff3a52', 0.55 * grip);
-    S.post.shake = lt < 0.45 ? 2 : grip > 0 && grip < 1 ? 1 : 0;
-  }, { pal: 'blood', name: 'c1-grip' });
+    const sg = g.createLinearGradient(0, 780, 0, H); sg.addColorStop(0, '#2a1610'); sg.addColorStop(1, '#0a0605');
+    g.fillStyle = sg; g.beginPath(); g.moveTo(0, 800); g.quadraticCurveTo(900, 740, W, 810); g.lineTo(W, H); g.lineTo(0, H); g.closePath(); g.fill();
+    for (let i = 0; i < 140; i++) { g.fillStyle = i % 3 ? 'rgba(10,6,4,0.7)' : 'rgba(90,60,40,0.5)'; g.beginPath(); g.ellipse(hash1(i) * W, 800 + hash1(i * 3) * 280, 6 + hash1(i * 5) * 22, 3 + hash1(i * 9) * 6, 0, 0, TAU); g.fill(); }
+    const rise = ease.outBack(clamp(lt / 0.5));
+    const reach = ease.outCubic(clamp((lt - 0.45) / 0.65));
+    const grip = ease.inOutSine(range(1.0, 1.4, lt));
+    const bind = range(1.35, 2.3, lt);
+    // his corpse arm tears up out of the soil
+    const wx = 860, wy = lerp(1250, 470, rise);
+    g.save(); g.beginPath(); g.rect(0, 0, W, 790); g.clip();
+    NM.paintHand(g, wx, wy, 340, -Math.PI / 2 + 0.1, { kind: 'corpse', curls: [0.45 - 0.3 * reach + 0.3 * grip, 0.4 - 0.3 * reach + 0.35 * grip, 0.5 - 0.3 * reach + 0.3 * grip, 0.6 - 0.3 * reach + 0.3 * grip, 0.2], spread: 1 - 0.6 * grip, bones: [3], arm: 150, armW: 30, sleeve: '#120f18', sleeveHi: '#3a3448', cuff: 'rags', veins: true, glowVeins: bind, light: 1 });
+    g.restore();
+    // soil bursting around the arm
+    for (let i = 0; i < 26; i++) { const k = clamp(lt / 0.9); const a = -Math.PI / 2 + (hash1(i * 5) - 0.5) * 2.4, v = 260 + hash1(i * 7) * 480; const px = wx + Math.cos(a) * v * k, py = 790 + Math.sin(a) * v * k + 900 * k * k; if (py > 800 && k > 0.2) continue; g.fillStyle = i % 2 ? '#1a0e08' : '#3a2416'; g.beginPath(); g.ellipse(px, py, 8 + hash1(i) * 14, 6 + hash1(i * 2) * 8, a, 0, TAU); g.fill(); }
+    g.fillStyle = '#1e120c'; g.beginPath(); g.ellipse(wx - 10, 800, 120, 26, 0, 0, TAU); g.fill();
+    // her gloved hand descends and closes around his wrist
+    if (reach > 0) {
+      const hx = lerp(1500, wx + 120, reach), hy = lerp(-120, wy + 70, reach);
+      NM.paintHand(g, hx, hy, 300, Math.PI - 0.32, { kind: 'glove', flip: true, curl: 0.15 + 0.8 * grip, spread: 0.3 - 0.3 * grip, arm: 170, armW: 28, sleeve: '#0e0b14', sleeveHi: '#4a3a5e', cuff: 'lace', ring: '#ff3a52', light: 1 });
+      if (grip > 0) glow(g, wx + 20, wy + 80, 340 * grip, '#ff3a52', 0.5 * grip);
+    }
+    // the binding: a crimson sigil and chain coil around both wrists
+    if (bind > 0) {
+      NM.sigil(g, wx + 30, wy + 90, 260, t, bind, { squash: 0.32, width: 3, alpha: 0.85, color: '#ff3a52', runes: true });
+      const pts = []; for (let k = 0; k <= 40; k++) { const f = k / 40, an = f * TAU * 2.2 + t * 2; pts.push(wx + 30 + Math.cos(an) * 90, wy + 260 - f * 240 + Math.sin(an) * 26); }
+      NM.chain(g, pts, 20, { color: '#ff3a52', thick: 4, reveal: bind, glow: 0.8 });
+    }
+    NM.particles(g, t, { n: 40, seed: 9, kind: 'ember', x: 500, y: 300, w: 900, h: 600, vx: 10, vy: -60, size: [1.5, 3.5], color: '#ff6a6a', alpha: 0.6 * bind });
+    g.restore();
+    S.post.shake = lt < 0.5 ? 1.2 : grip > 0 && grip < 1 ? 0.6 : 0;
+    if (lt > 1.0 && lt < 1.12) { S.post.flash = 0.35; S.post.flashColor = '#ff2040'; }
+    S.post.grade = { shadow: '#14040a', light: '#ffb0a0', amount: 0.35 };
+  }, { name: 'c1-grip', paint: { r: 5 } });
 
-  // 39.45 – 42.45  the kiss before the blood moon (silhouettes)
+  // 39.45 – 42.45 the kiss before the blood moon
   NM.shot(39.45, 42.45, (g, S) => {
     const t = S.t, lt = S.lt;
     const push = 1 + lt * 0.04;
-    g.save(); g.translate(240, 140); g.scale(push, push); g.translate(-240, -140);
-    NM.skyGrad(g, [[0, '#1f0e12'], [0.6, '#561d25'], [1, '#7c2630']]);
-    NM.moon(g, 240, 92, 82, { blood: 0.5 });
-    NM.clouds(g, t, { y: 100, h: 60, speed: 8, alpha: 0.25, tint: '#a8353a' });
-    NM.ridge(g, 4, 190, 6, 0.01, '#35151b');
-    // candle flames on the hill whose light is being drunk
+    g.save(); g.translate(960, 560); g.scale(push, push); g.translate(-960, -560);
+    NM.paintSky(g, t, { top: '#14060a', mid: '#4a1018', low: '#8a2a2a', moon: { x: 960, y: 400, r: 330, blood: 0.6 }, cloudDark: '#2a0a10', cloudLight: '#ff8a8a', cloudY: 420, cloudH: 260, speed: 8 });
+    NM.paintRidge(g, 4, 780, 24, 0.0025, '#2a0a10', '#ff7a7a');
     const drain = clamp((lt - 0.6) / 1.6);
     for (let i = 0; i < 6; i++) {
-      const cx = 120 + i * 48 + (i > 2 ? 30 : -30), cy = 192;
-      g.fillStyle = '#fde4d6'; g.fillRect(cx - 1, cy - 6, 3, 6);
-      if (drain < 1 - i * 0.12) NM.flame(g, cx, cy - 6, 6, t, i, { color: '#ffcf7a', glowR: 4, glowA: 0.4 });
-      // stolen light streams toward the kiss
+      const cx = 480 + i * 192 + (i > 2 ? 120 : -120), cy = 790;
+      NM.paintCandle(g, cx, cy, 1.4, t, i, { lit: clamp(1 - drain * 1.4 + i * 0.12) });
       const k = clamp(drain * 1.6 - i * 0.12);
-      if (k > 0 && k < 1) { const px = lerp(cx, 240, ease.inQuad(k)), py = lerp(cy - 8, 70, ease.inQuad(k)) - Math.sin(k * Math.PI) * 30; glow(g, px, py, 10, '#fde4d6', 0.8); }
+      if (k > 0 && k < 1) { const px = lerp(cx, 960, ease.inQuad(k)), py = lerp(cy - 60, 290, ease.inQuad(k)) - Math.sin(k * Math.PI) * 120; glow(g, px, py, 40, '#fff0d8', 0.85); }
     }
-    // two profiles meeting in a kiss, backlit by the moon (rim on the upper edges)
     const kiss = (q) => {
+      q.save(); q.scale(4, 4);
       const lipX = 240, lipY = 100 + Math.sin(t * 1.3) * 0.6;
-      // Lucien — taller, head bowed toward her, seen side-on
       NM.profileHead(q, lipX, lipY, 46, -1, 0.3, 'lucien');
       q.beginPath(); q.moveTo(248, 118); q.quadraticCurveTo(250, 140, 254, 160); q.lineTo(256, 280); q.lineTo(304, 280); q.lineTo(300, 170); q.quadraticCurveTo(298, 128, 280, 104); q.closePath(); q.fill();
-      // Isolde — chin raised, hair falling down her back
       NM.profileHead(q, lipX, lipY, 40, 1, -0.25, 'isolde');
       const sw = Math.sin(t * 1.7) * 3;
       q.beginPath(); q.moveTo(206, 80); q.bezierCurveTo(192, 110, 190 + sw, 160, 176 + sw * 2, 220); q.lineTo(204, 224); q.bezierCurveTo(206, 170, 212, 124, 224, 98); q.closePath(); q.fill();
       q.beginPath(); q.moveTo(232, 114); q.quadraticCurveTo(242, 136, 238, 150); q.quadraticCurveTo(232, 166, 236, 176); q.lineTo(262, 280); q.lineTo(176, 280); q.lineTo(204, 176); q.quadraticCurveTo(208, 150, 206, 128); q.quadraticCurveTo(214, 112, 222, 108); q.closePath(); q.fill();
-      // her arm curling up behind his neck; his arm around her back
       q.lineCap = 'round'; q.strokeStyle = q.fillStyle;
       q.lineWidth = 6; q.beginPath(); q.moveTo(222, 130); q.quadraticCurveTo(244, 122, 272, 100); q.stroke();
       q.lineWidth = 7; q.beginPath(); q.moveTo(286, 132); q.quadraticCurveTo(246, 176, 208, 160); q.stroke();
+      q.restore();
     };
-    const veil = (q) => { const sw = Math.sin(t * 1.4) * 6; q.beginPath(); q.moveTo(206, 78); q.bezierCurveTo(170, 96 + sw, 130 - sw, 140, 90 - sw * 2, 220); q.lineTo(150, 230); q.bezierCurveTo(170, 160, 190, 120, 222, 98); q.closePath(); q.fill(); };
-    NM.silhouette(g, 'rgba(53,21,27,0.8)', veil);
-    g.save(); g.translate(-1, -1); NM.silhouette(g, '#ec8a7a', kiss); g.restore();
-    g.save(); g.translate(1, -1); NM.silhouette(g, '#d0554f', kiss); g.restore();
-    NM.silhouette(g, '#0e0709', kiss);
-    NM.silhouette(g, '#0e0709', (q) => { NM.deadTree(q, 30, 230, 210, 31, t, { depth: 7, lean: 0.3 }); NM.deadTree(q, 460, 240, 230, 5, t, { depth: 7, lean: -0.25 }); });
-    glow(g, 240, 70, 26, '#fde4d6', 0.5 * drain);
-    for (let i = 0; i < 22; i++) NM.lily(g, (i * 41 + 7) % 500 - 10, 274 - (i % 3) * 3, 22 + (i % 4) * 5, t, i);
+    const veil = (q) => { q.save(); q.scale(4, 4); const sw = Math.sin(t * 1.4) * 6; q.beginPath(); q.moveTo(206, 78); q.bezierCurveTo(170, 96 + sw, 130 - sw, 140, 90 - sw * 2, 220); q.lineTo(150, 230); q.bezierCurveTo(170, 160, 190, 120, 222, 98); q.closePath(); q.fill(); q.restore(); };
+    NM.silhouette(g, 'rgba(53,21,27,0.75)', veil);
+    g.save(); g.translate(-4, -4); NM.silhouette(g, '#ff9a8a', kiss); g.restore();
+    g.save(); g.translate(4, -4); NM.silhouette(g, '#d0554f', kiss); g.restore();
+    NM.silhouette(g, '#0c0406', kiss);
+    NM.paintTree(g, 120, 1000, 900, 31, t, { color: '#0c0406', rim: 'rgba(255,120,120,0.35)', lean: 0.3 });
+    NM.paintTree(g, 1840, 1020, 920, 5, t, { color: '#0c0406', rim: 'rgba(255,120,120,0.35)', lean: -0.25, rimDx: -2 });
+    glow(g, 960, 290, 120, '#fff0d8', 0.5 * drain);
+    NM.lilyField(g, t, 950, 50, 9, { size: 130, depth: 140 });
     g.restore();
-    NM.particles(g, t, { n: 24, seed: 21, kind: 'petal', vx: -14, vy: 20, drift: 18, size: [1.4, 2.4], alpha: 0.9 });
-  }, { pal: 'blood', name: 'c1-kiss', in: { type: 'fade', dur: 0.3 } });
+    NM.particles(g, t, { n: 50, seed: 21, kind: 'petal', vx: -40, vy: 60, drift: 50, size: [5, 8], alpha: 0.9 });
+    S.post.grade = { shadow: '#1a0408', light: '#ffb0a0', amount: 0.3 };
+  }, { name: 'c1-kiss', in: { type: 'fade', dur: 0.3 } });
 
-  // 42.45 – 45.35  "You'll dance with me" — the waltz among the graves (map, 2x)
+  // waltz pair helper (spinning via horizontal scale)
+  NM.waltz = function (q, cx, gy, s, t, spin, o = {}) {
+    const sx = Math.cos(spin);
+    q.save(); q.translate(cx, 0); q.scale(Math.abs(sx) < 0.12 ? 0.12 * Math.sign(sx || 1) : sx, 1); q.translate(-cx, 0);
+    const lu = { dir: -1, lean: 0.12, armF: [1.0, 0.9], armB: [1.55, -0.25], legF: [0.3 * Math.sin(t * 5), -0.1], legB: [-0.3 * Math.sin(t * 5), 0.25], expr: o.lexpr || 'hollow', yaw: 0.45 };
+    const is = { dir: 1, lean: 0.1, armF: [2.05, 0.55], armB: [1.55, -0.25], twirl: 0.7 + 0.3 * Math.sin(t * 2), wind: 1, expr: o.iexpr || 'tender', yaw: 0.45, headTilt: -0.1 };
+    if (Math.sin(spin) > 0) { NM.figIsolde(q, cx - 0.1 * s, gy, s * 0.93, is, t); NM.figLucien(q, cx + 0.12 * s, gy, s, lu, t); }
+    else { NM.figLucien(q, cx + 0.12 * s, gy, s, lu, t); NM.figIsolde(q, cx - 0.1 * s, gy, s * 0.93, is, t); }
+    q.restore();
+  };
+
+  // 42.45 – 45.35 the waltz among the graves (camera drifts around them)
   NM.shot(42.45, 45.35, (g, S) => {
     const t = S.t, lt = S.lt;
-    const m = NM.MAPS.graveyard;
-    const buf = NM._zoomBuf || (NM._zoomBuf = NM.canvas(W, H));
-    const bg = buf.getContext('2d');
-    bg.setTransform(1, 0, 0, 1, 0, 0);
-    const cx = m.grave.x, cy = m.grave.y + 40;
-    const cam = { x: Math.round(cx - W / 2), y: Math.round(cy - H / 2) };
-    NM.drawGround(bg, m, cam);
-    bg.save(); bg.translate(-cam.x, -cam.y);
-    const items = NM.propItems(bg, m, t);
-    items.push({ y: m.grave.y + 12, draw: (q) => NM.PROPS.freshGrave(q, m.grave.x, m.grave.y, { open: 1 }) });
-    items.push({ y: m.grave.y - 20, draw: (q) => NM.PROPS.headstoneNew(q, m.grave.x, m.grave.y - 16) });
-    const th = t * 2.6;
-    const pos = (a) => ({ x: cx + Math.cos(a) * 13, y: cy + Math.sin(a) * 8 });
-    const pI = pos(th), pL = pos(th + Math.PI);
-    const face = (a, b) => { const dx = b.x - a.x, dy = b.y - a.y; return Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : dy > 0 ? 'down' : 'up'; };
-    const fr = [0, 1, 2, 1][Math.floor(t * 6) % 4];
-    items.push({ y: pI.y, draw: (q) => NM.drawChar(q, 'isolde', pI.x, pI.y, face(pI, pL), fr) });
-    items.push({ y: pL.y, draw: (q) => NM.drawChar(q, 'lucien', pL.x, pL.y, face(pL, pI), fr) });
-    NM.drawSorted(bg, items);
-    NM.chain(bg, [pI.x, pI.y - 14, cx, cy - 22, pL.x, pL.y - 18], 4, { color: '#ff3a52', thick: 1, glow: 0.5 });
-    NM.balloon(bg, Math.floor(t * 1.5) % 2 ? 'note' : 'heart', pI.x, pI.y - 30, 1, t);
-    // spectators: ghosts drifting
-    for (let i = 0; i < 5; i++) {
-      const a = i * 1.3 + t * 0.4, gx = cx + Math.cos(a) * 70, gy = cy + Math.sin(a) * 30 - 10;
-      NM.drawChar(bg, 'ghost', gx, gy + Math.sin(t * 3 + i) * 3, gx < cx ? 'right' : 'left', Math.floor(t * 5 + i) % 3, { alpha: 0.55, shadow: false });
-    }
-    bg.restore();
-    NM.darkness(bg, [{ x: W / 2, y: H / 2 - 14, r: 110, color: '#ff2040', ca: 0.12 }], 0.62, '#05040c', t);
-    g.imageSmoothingEnabled = false;
-    g.drawImage(buf, W / 4, H / 4 - 12, W / 2, H / 2, 0, 0, W, H);
-  }, { pal: 'night', name: 'c1-dance', in: { type: 'black', dur: 0.2 } });
+    const c = NM.cam3({ x: Math.sin(lt * 0.8) * 160, y: 120, z: 860 + lt * 20, f: 1100, vy: H * 0.4 });
+    NM.gyNight(g, t, c, { rose: true, open: 1, candles: () => 1, gyOpts: { hooks: { 1300: (q) => {
+      const p = NM.P3(c, 0, 0, 1220);
+      NM.withRim(q, (r) => NM.waltz(r, p.x, p.y, 185 * p.k, t, t * 2.6), '#c8c0ff', 1, -0.5, 4, 0.7);
+      NM.chain(q, [p.x - 12 * p.k, p.y - 95 * p.k, p.x, p.y - 75 * p.k, p.x + 18 * p.k, p.y - 150 * p.k], 6 * p.k, { color: '#ff3a52', thick: 1.2 * p.k, glow: 0.7 });
+    } } } });
+    for (let i = 0; i < 5; i++) { const a = i * 1.3 + t * 0.4; const p = NM.P3(c, Math.cos(a) * 1000, 0, 1800 + Math.sin(a) * 400); NM.figGhost(g, p.x, p.y - 20 * p.k, 150 * p.k, t + i, { alpha: 0.4, face: true, expr: 'sleep' }); }
+    S.post.grade = { shadow: '#0c0818', light: '#ffc0d0', amount: 0.35 };
+  }, { name: 'c1-dance', in: { type: 'black', dur: 0.2 } });
 
-  // 45.35 – 48.40  "A prisoner to the dead and drowned" — the dead rise all around
+  // 45.35 – 48.40 the dead rise all around as they walk away
   NM.shot(45.35, 48.4, (g, S) => {
     const t = S.t, lt = S.lt;
-    const m = NM.MAPS.graveyard;
-    const iso = NM.walk(t, [[45.35, m.grave.x, m.grave.y + 40], [48.4, m.grave.x, m.grave.y - 60]], 7);
-    const luc = NM.walk(t - 0.55, [[45.35, m.grave.x, m.grave.y + 40], [48.4, m.grave.x, m.grave.y - 60]], 7);
-    const cam = { x: Math.round(m.grave.x - W / 2), y: Math.round(lerp(m.grave.y - 80, m.grave.y - 150, lt / 3)) };
-    NM.drawGround(g, m, cam);
-    g.save(); g.translate(-cam.x, -cam.y);
-    const items = NM.propItems(g, m, t);
-    items.push({ y: m.grave.y + 12, draw: (q) => NM.PROPS.freshGrave(q, m.grave.x, m.grave.y, { open: 1 }) });
-    items.push({ y: m.grave.y - 20, draw: (q) => NM.PROPS.headstoneNew(q, m.grave.x, m.grave.y - 16) });
-    items.push({ y: iso.y, draw: (q) => NM.drawChar(q, 'isolde', iso.x, iso.y, iso.dir, iso.frame) });
-    items.push({ y: luc.y, draw: (q) => NM.drawChar(q, 'lucien', luc.x, luc.y, luc.dir, luc.frame) });
-    NM.drawSorted(g, items);
-    // ghosts rise from the older graves
-    const tombs = m.objects.filter((o) => ['tomb', 'cross', 'gothicTomb'].includes(o.type));
-    tombs.forEach((o, i) => {
-      const k = clamp((lt - (i % 9) * 0.18) / 0.8);
-      if (k <= 0) return;
-      NM.drawChar(g, 'ghost', o.x, o.y - 4 - ease.outCubic(k) * 16 + Math.sin(t * 3 + i) * 2, 'down', Math.floor(t * 5 + i) % 3, { alpha: 0.65 * k, shadow: false });
-    });
-    g.restore();
-    NM.fog(g, t, 90, 160, 0.25, 12, cam.x);
-    NM.darkness(g, [{ x: iso.x - cam.x, y: iso.y - 10 - cam.y, r: 120, color: '#b9e6ff', ca: 0.08 }], 0.5, '#05040c', t);
-  }, { pal: 'night', name: 'c1-dead', out: { dur: 0.5 } });
+    const c = NM.cam3({ x: 0, y: 260 + lt * 40, z: 200 - lt * 60, f: 1000, vy: H * 0.46 });
+    const walkZ = c.z + lerp(520, 820, lt / 3);
+    NM.gyNight(g, t, c, { open: 1, gyOpts: { hooks: { [walkZ + 10]: (q) => {
+      const p1 = NM.P3(c, -50, 0, walkZ), p2 = NM.P3(c, 60, 0, walkZ + 140);
+      NM.withRim(q, (r) => { NM.figLucienBack(r, p2.x, p2.y, 185 * p2.k, t); NM.figIsoldeBack(r, p1.x, p1.y, 172 * p1.k, t, { lantern: true }); }, '#bfe9ff', 0, -1, 3, 0.5);
+    } } } });
+    // spirits rising from the graves
+    for (let i = 0; i < 18; i++) {
+      const X = (hash1(i * 7) - 0.5) * 2600, Z = 500 + hash1(i * 13) * 3600;
+      const k = clamp((lt - hash1(i * 3) * 1.6) / 0.9);
+      if (k <= 0) continue;
+      const p = NM.P3(c, X, ease.outCubic(k) * 160, Z);
+      NM.figGhost(g, p.x, p.y, 170 * p.k, t + i, { alpha: 0.55 * k, face: p.k > 0.5, expr: 'sleep', color: i % 4 ? '#bfe9ff' : '#d8c8ff' });
+    }
+    S.post.grade = { shadow: '#0c0818', light: '#b8d8ff', amount: 0.35 };
+  }, { name: 'c1-dead', out: { dur: 0.5 } });
 
   // ======================================================================
-  // 48.40 – 53.55  THE MANSION (map, instrumental)
+  // 48.40 – 53.55  THE MANOR
   // ======================================================================
   NM.shot(48.4, 53.55, (g, S) => {
     const t = S.t, lt = S.lt;
-    const m = NM.MAPS.mansionExt;
-    const door = m.door;
-    const keys = [[48.4, door.x, 380], [52.3, door.x, door.y + 14], [52.85, door.x, door.y + 14, 'up'], [53.4, door.x, door.y - 2]];
-    const iso = NM.walk(t, keys, 7);
-    const luc = NM.walk(t - 0.6, keys, 7);
-    const cam = NM.follow(m, door.x, iso.y + 30);
-    NM.drawGround(g, m, cam);
-    g.save(); g.translate(-cam.x, -cam.y);
-    const items = NM.propItems(g, m, t, (o) => o.type !== 'door');
-    items.push({ y: door.y, draw: (q) => NM.PROPS.door(q, door.x, door.y, { open: t > 52.6 }) });
-    // the black cat
-    const catRun = clamp((t - 50.6) / 0.9);
-    const catX = lerp(door.x - 30, door.x - 220, ease.inQuad(catRun)), catY = 250;
-    items.push({ y: catY, draw: (q) => NM.drawChar(q, 'cat', catX, catY, catRun > 0 ? 'left' : 'down', catRun > 0 ? Math.floor(t * 12) % 3 : 1) });
-    const enter = (st) => st.y < door.y + 2;
-    items.push({ y: iso.y, draw: (q) => NM.drawChar(q, 'isolde', iso.x, iso.y, iso.dir, iso.frame, { clipBottom: enter(iso) ? 32 * clamp((door.y + 2 - iso.y) / 16) : null }) });
-    items.push({ y: luc.y, draw: (q) => NM.drawChar(q, 'lucien', luc.x, luc.y, luc.dir, luc.frame) });
-    NM.drawSorted(g, items);
-    if (t > 50.3 && t < 51.3) NM.balloon(g, '!', door.x - 30, catY - 22, 1, t);
-    if (t > 51.6 && t < 52.4) NM.balloon(g, 'dots', luc.x, luc.y - 30, 1, t - 51.6);
-    // lit window glows
-    for (const o of m.objects) if (o.type === 'window' && o.lit) glow(g, o.x, o.y - 14, 40, '#ffb347', 0.35);
+    const z = 1 + lt * 0.03;
+    g.save(); g.translate(W / 2, H * 0.55); g.scale(z, z); g.translate(-W / 2, -H * 0.55);
+    NM.manorScene(g, t, { x: W / 2, y: 720, scale: 1.0, lit: [1, 4, 7, 10, 12] });
+    // the doors open: warm light
+    const door = range(3.9, 4.6, lt);
+    if (door > 0) { g.fillStyle = rgba('#ffcf8a', 0.9 * door); g.fillRect(W / 2 - 30, 640, 60 * door, 80); glow(g, W / 2, 680, 220, '#ffaa50', 0.6 * door); }
+    // path up the hill
+    const pg = g.createLinearGradient(0, 720, 0, H); pg.addColorStop(0, 'rgba(70,60,80,0.4)'); pg.addColorStop(1, 'rgba(40,34,46,0.9)');
+    g.fillStyle = pg; g.beginPath(); g.moveTo(W / 2 - 40, 720); g.lineTo(W / 2 + 40, 720); g.lineTo(W / 2 + 360, H); g.lineTo(W / 2 - 360, H); g.closePath(); g.fill();
+    // the couple walking up the path (back views), shrinking with distance
+    const k = clamp(lt / 4.5);
+    const yy = lerp(1000, 735, ease.inOutSine(k)), sc = lerp(1, 0.16, ease.inOutSine(k));
+    if (lt < 4.9) { NM.figLucienBack(g, W / 2 + 40 * sc, yy - 4 * sc, 560 * sc, t); NM.figIsoldeBack(g, W / 2 - 40 * sc, yy, 520 * sc, t, { lantern: true }); }
     g.restore();
-    const lights = [{ x: iso.x - cam.x, y: iso.y - 12 - cam.y, r: 80, color: '#ffb347', ca: 0.1 }];
-    for (const o of m.objects) if (o.type === 'window' && o.lit) lights.push({ x: o.x - cam.x, y: o.y - 14 - cam.y, r: 60, flicker: true });
-    if (t > 52.6) lights.push({ x: door.x - cam.x, y: door.y - 16 - cam.y, r: 40 });
-    NM.darkness(g, lights, 0.55, '#05040c', t);
-    NM.fog(g, t, 160, 120, 0.15, 10);
-  }, { pal: 'night', name: 'mansion', in: { type: 'black', dur: 0.5 }, out: { dur: 0.35 } });
+    // foreground gate swinging open, cat on the pillar
+    NM.ironGate(g, W / 2, H + 40, 1100, 760, ease.inOutSine(clamp(lt / 1.6)));
+    NM.paintCat(g, W / 2 - 600, H + 40 - 760 - 80, 120, t, { dir: 1 });
+    NM.paintFog(g, t, 820, 280, 0.28, '#6a6090', 14);
+    S.post.grade = { shadow: '#0c0818', light: '#ffc89a', amount: 0.35 };
+  }, { name: 'mansion', in: { type: 'black', dur: 0.6 }, out: { dur: 0.4 } });
 
   // ======================================================================
   // VERSE 2  53.55 – 65.60
   // ======================================================================
-  // 53.55 – 56.65 hall: footprints in the dust
   NM.shot(53.55, 56.65, (g, S) => {
     const t = S.t, lt = S.lt;
-    const m = NM.MAPS.hall;
-    const keys = [[53.55, 40, 176], [56.65, 360, 176]];
-    const iso = NM.walk(t, keys, 7), luc = NM.walk(t - 0.6, keys, 7);
-    const cam = NM.follow(m, iso.x - 30, 120);
-    NM.drawGround(g, m, cam);
-    g.save(); g.translate(-cam.x, -cam.y);
-    // moonlight shafts from the windows
-    for (const o of m.objects) if (o.type === 'window') NM.shaft(g, o.x, o.y - 6, 14, o.x + 30, o.y + 120, 40, '#8a93b8', 0.12);
-    // footprints left in the dust
-    for (let tt = 53.6; tt < t - 0.2; tt += 0.22) {
-      const p = NM.walk(tt, keys, 7), k = Math.round((tt - 53.6) / 0.22);
-      g.fillStyle = '#3a2a22'; g.fillRect(Math.round(p.x) - 2 + (k % 2) * 3, Math.round(p.y) - 1, 2, 1);
-    }
-    const items = NM.propItems(g, m, t);
-    items.push({ y: iso.y, draw: (q) => NM.drawChar(q, 'isolde', iso.x, iso.y, iso.dir, iso.frame) });
-    items.push({ y: luc.y, draw: (q) => NM.drawChar(q, 'lucien', luc.x, luc.y, luc.dir, luc.frame) });
-    NM.drawSorted(g, items);
-    NM.chain(g, [iso.x - 6, iso.y - 14, (iso.x + luc.x) / 2, iso.y - 4, luc.x + 4, luc.y - 18], 4, { color: '#ff3a52', thick: 1, glow: 0.4 });
-    g.restore();
-    NM.particles(g, t, { n: 40, seed: 31, kind: 'dot', vx: 4, vy: -3, drift: 10, driftY: 6, size: [0.5, 1], color: '#e8e2d8', alpha: 0.5, twinkle: 2 });
-    const lights = [{ x: iso.x - cam.x, y: iso.y - 14 - cam.y, r: 70 }];
-    for (const o of m.objects) if (o.type === 'candelabra') lights.push({ x: o.x - cam.x, y: o.y - 24 - cam.y, r: 46, flicker: true, color: '#ffb347', ca: 0.12 });
-    NM.darkness(g, lights, 0.5, '#0b0709', t);
-  }, { pal: 'mansion', name: 'v2-hall', in: { type: 'black', dur: 0.3 } });
+    const c = NM.cam3({ x: 0, y: 150, z: lt * 90, f: 900, vy: H * 0.4 });
+    NM.interior(g, t, c, 'hall', { carpet: 90 });
+    const z0 = c.z + 330 + lt * 70;
+    const p1 = NM.P3(c, -50, 0, z0), p2 = NM.P3(c, 60, 0, z0 + 90);
+    NM.withRim(g, (q) => { NM.figLucienBack(q, p2.x, p2.y, 185 * p2.k, t); NM.figIsoldeBack(q, p1.x, p1.y, 172 * p1.k, t, { lantern: true }); }, '#ffcf8a', 0, -1, 3, 0.5);
+    NM.particles(g, t, { n: 120, seed: 31, kind: 'dot', vx: 6, vy: -4, drift: 30, driftY: 20, size: [1, 2.2], color: '#f0e0c8', alpha: 0.45, twinkle: 2 });
+    S.post.grade = { shadow: '#120a0c', light: '#ffcf9a', amount: 0.35 };
+  }, { name: 'v2-hall', in: { type: 'black', dur: 0.4 } });
 
-  // crypt map helper
-  function cryptScene(g, S, opt) {
-    const t = S.t;
-    const m = NM.MAPS.crypt;
-    const iso = opt.iso, luc = opt.luc;
-    const cam = opt.cam || NM.follow(m, iso.x, iso.y + 20);
-    NM.drawGround(g, m, cam);
-    g.save(); g.translate(-cam.x, -cam.y);
-    const items = NM.propItems(g, m, t);
-    if (iso) items.push({ y: iso.y, draw: (q) => NM.drawChar(q, 'isolde', iso.x, iso.y, iso.dir, iso.frame) });
-    if (luc) items.push({ y: luc.y, draw: (q) => NM.drawChar(q, 'lucien', luc.x, luc.y, luc.dir, luc.frame, { alpha: luc.alpha }) });
-    if (opt.items) opt.items(items, cam);
-    NM.drawSorted(g, items);
-    if (opt.after) opt.after(g, cam);
-    g.restore();
-    const lights = [];
-    if (iso) lights.push({ x: iso.x - cam.x, y: iso.y - 14 - cam.y, r: 80, color: '#ffb347', ca: 0.08 });
-    for (const o of m.objects) if (o.type === 'candle') lights.push({ x: o.x - cam.x, y: o.y - 8 - cam.y, r: 40, flicker: true, color: '#ffb347', ca: 0.12 });
-    if (opt.lights) lights.push(...opt.lights(cam));
-    NM.darkness(g, lights, opt.dark ?? 0.62, '#05050a', t);
-    return cam;
-  }
-  NM.cryptScene = cryptScene;
-
-  // 56.65 – 59.65 crypt: "Through crypts of sorrow, grief, and rust"
   NM.shot(56.65, 59.65, (g, S) => {
-    const t = S.t;
-    const m = NM.MAPS.crypt;
-    const keys = [[56.65, m.altar.x, 52], [59.4, m.altar.x, m.altar.y + 20]];
-    const iso = NM.walk(t, keys, 7), luc = NM.walk(t - 0.6, keys, 7);
-    cryptScene(g, S, { iso, luc, after: (q) => NM.chain(q, [iso.x + 5, iso.y - 14, iso.x + 8, (iso.y + luc.y) / 2 - 10, luc.x + 4, luc.y - 18], 4, { color: '#ff3a52', thick: 1, glow: 0.4 }) });
-  }, { pal: 'crypt', name: 'v2-crypt', in: { type: 'black', dur: 0.25 } });
+    const t = S.t, lt = S.lt;
+    const c = NM.cam3({ x: 0, y: 160, z: lt * 70, f: 900, vy: H * 0.4 });
+    NM.interior(g, t, c, 'crypt', {});
+    const z0 = c.z + 300 + lt * 80;
+    const p1 = NM.P3(c, -40, 0, z0), p2 = NM.P3(c, 70, 0, z0 + 90);
+    NM.withRim(g, (q) => { NM.figLucienBack(q, p2.x, p2.y, 185 * p2.k, t); NM.figIsoldeBack(q, p1.x, p1.y, 172 * p1.k, t, { lantern: true }); }, '#ffcf8a', 0, -1, 3, 0.5);
+    S.post.grade = { shadow: '#0a0a14', light: '#c8b8a0', amount: 0.35 };
+  }, { name: 'v2-crypt', in: { type: 'black', dur: 0.3 } });
 
   // 59.65 – 61.20 sepia memory: the wedding
   NM.shot(59.65, 61.2, (g, S) => {
     const t = S.t, lt = S.lt;
-    NM.skyGrad(g, [[0, '#2b1f16'], [1, '#634a2e']]);
-    // church window behind
-    g.fillStyle = '#e6cd96'; g.beginPath(); NM.archPath(g, 240, 150, 120, 150); g.closePath(); g.fill();
-    g.fillStyle = '#2b1f16'; g.fillRect(237, 10, 6, 140); g.fillRect(180, 80, 120, 5);
-    NM.shaft(g, 240, 40, 100, 240, 220, 260, '#f6ead0', 0.25);
-    g.fillStyle = '#45321f'; g.fillRect(0, 186, W, 90);
-    const zoom = 1 + lt * 0.05;
-    g.save(); g.translate(240, 150); g.scale(zoom, zoom); g.translate(-240, -150);
-    NM.figLucien(g, 278, 194, 160, { dir: -1, alive: true, armF: [1.25, 0.35], armB: [0.15, 0.3], expr: 'alive', turn: 0.6 }, t);
-    NM.figIsolde(g, 204, 194, 150, { dir: 1, armF: [1.2, 0.3], armB: [0.3, 0.6], expr: 'tender', turn: 0.6, wind: 0.2,
-      over: { P: { hair: '#45321f', hairMid: '#634a2e', hairHi: '#a98652' } } }, t,
-      { colors: { dress: '#f6ead0', dressHi: '#c9a86c', dressRim: '#ffffff', lace: '#ffffff', veil: 'rgba(246,234,208,0.6)', hair: '#45321f', glove: '#f6ead0' } });
+    NM.skyGrad(g, [[0, '#2a1e14'], [1, '#5a4228']]);
+    // great window behind the altar
+    g.fillStyle = '#1a120a'; g.beginPath(); NM.archPath(g, 960, 760, 600, 720); g.closePath(); g.fill();
+    g.fillStyle = '#e6cd96'; g.beginPath(); NM.archPath(g, 960, 740, 540, 680); g.closePath(); g.fill();
+    g.fillStyle = '#2a1e14'; g.fillRect(952, 80, 16, 660); g.fillRect(690, 360, 540, 14);
+    NM.shaft(g, 960, 200, 420, 960, H, 1100, '#fff0d0', 0.3);
+    g.fillStyle = '#3a2a1a'; g.fillRect(0, 780, W, 300);
+    softShade(g, 960, 790, 700, 80, '#fff0d0', 0.4, 'screen');
+    const z = 1 + lt * 0.04;
+    g.save(); g.translate(960, 600); g.scale(z, z); g.translate(-960, -600);
+    NM.figLucien(g, 1090, 800, 640, { dir: -1, alive: true, armF: [1.25, 0.35], armB: [0.15, 0.3], expr: 'alive', yaw: 0.5 }, t, { colors: { coat: '#2a1e14', coatMid: '#3a2a1a', coatHi: '#6a5030' } });
+    NM.figIsolde(g, 820, 800, 600, { dir: 1, armF: [1.2, 0.3], armB: [0.3, 0.6], expr: 'tender', yaw: 0.5, wind: 0.2 }, t, { colors: { dress: '#e6d8c0', dressMid: '#f4e8d4', dressHi: '#ffffff', lace: '#ffffff', veil: 'rgba(250,240,220,0.55)', glove: '#f4ead8' } });
     g.restore();
-    glow(g, 241, 128, 12, '#ffffff', 0.9 * (0.6 + 0.4 * Math.sin(t * 6)));
-    // old film scratches
-    for (let i = 0; i < 3; i++) { const x = hash1(Math.floor(t * 12) * 7 + i) * W; g.fillStyle = 'rgba(246,234,208,0.35)'; g.fillRect(x, 0, 1, H); }
-    S.post.vignette = 1;
-  }, { pal: 'sepia', name: 'v2-wedding', in: { type: 'white', dur: 0.4 } });
+    glow(g, 958, 520, 30, '#ffffff', 0.9 * (0.6 + 0.4 * Math.sin(t * 6)));
+    NM.particles(g, t, { n: 40, seed: 41, kind: 'dot', vx: 4, vy: 20, drift: 30, size: [1.5, 3], color: '#fff4dc', alpha: 0.6 });
+    for (let i = 0; i < 3; i++) { const x = hash1(Math.floor(t * 12) * 7 + i) * W; g.fillStyle = 'rgba(246,234,208,0.25)'; g.fillRect(x, 0, 2, H); }
+    S.post.grade = { shadow: '#2a1a0a', light: '#f0d8a8', amount: 0.6 };
+  }, { name: 'v2-wedding', in: { type: 'white', dur: 0.4 } });
 
   // 61.20 – 62.65 the chains of death shatter
   NM.shot(61.2, 62.65, (g, S) => {
     const t = S.t, lt = S.lt;
-    NM.skyGrad(g, [[0, '#05050a'], [1, '#1b1b33']]);
-    glow(g, 240, 110, 160, '#57528f', 0.4);
-    // coffin (front view, standing)
-    g.fillStyle = '#2a2a4d';
-    g.beginPath(); g.moveTo(205, 20); g.lineTo(275, 20); g.lineTo(295, 60); g.lineTo(270, 190); g.lineTo(210, 190); g.lineTo(185, 60); g.closePath(); g.fill();
-    g.fillStyle = '#3c3a6b'; g.beginPath(); g.moveTo(212, 28); g.lineTo(268, 28); g.lineTo(284, 62); g.lineTo(262, 182); g.lineTo(218, 182); g.lineTo(196, 62); g.closePath(); g.fill();
-    g.fillStyle = '#a89bd8'; g.fillRect(236, 50, 8, 70); g.fillRect(220, 70, 40, 8);
+    const c = NM.cam3({ x: 0, y: 260, z: 0, f: 900, vy: H * 0.46 });
+    NM.interior(g, t, c, 'crypt', {});
+    g.fillStyle = 'rgba(0,0,0,0.45)'; g.fillRect(0, 0, W, H);
+    // coffin standing upright
+    const cg = g.createLinearGradient(780, 0, 1140, 0); cg.addColorStop(0, '#1a100a'); cg.addColorStop(0.55, '#5a3a24'); cg.addColorStop(1, '#140c08');
+    g.fillStyle = cg;
+    g.beginPath(); g.moveTo(860, 90); g.lineTo(1060, 90); g.lineTo(1150, 260); g.lineTo(1060, 980); g.lineTo(860, 980); g.lineTo(770, 260); g.closePath(); g.fill();
+    g.fillStyle = '#b08850'; g.fillRect(946, 220, 28, 300); g.fillRect(880, 300, 160, 28);
     const snap = 0.45;
     if (lt < snap) {
-      NM.chain(g, [150, 40, 240, 100, 330, 170], 10, { color: '#7d73b5', thick: 2.2, highlight: '#d6cdf0' });
-      NM.chain(g, [330, 40, 240, 100, 150, 170], 10, { color: '#7d73b5', thick: 2.2, highlight: '#d6cdf0' });
-      g.strokeStyle = '#ff3a52'; g.lineWidth = 1;
-      for (let i = 0; i < 6; i++) { g.beginPath(); g.moveTo(240, 100); g.lineTo(240 + Math.cos(i) * 40 * (lt / snap), 100 + Math.sin(i * 1.7) * 40 * (lt / snap)); g.stroke(); }
+      NM.chain(g, [560, 120, 960, 520, 1360, 940], 54, { color: '#3a3a48', thick: 12, highlight: '#a0a0b8' });
+      NM.chain(g, [1360, 120, 960, 520, 560, 940], 54, { color: '#3a3a48', thick: 12, highlight: '#a0a0b8' });
+      g.strokeStyle = '#ff3a52'; g.lineWidth = 4;
+      for (let i = 0; i < 8; i++) { g.beginPath(); g.moveTo(960, 520); g.lineTo(960 + Math.cos(i) * 180 * (lt / snap), 520 + Math.sin(i * 1.7) * 180 * (lt / snap)); g.stroke(); }
     } else {
       const k = lt - snap;
-      for (let i = 0; i < 26; i++) {
-        const a = hash1(i * 3) * TAU, sp = 120 + hash1(i * 5) * 200;
-        const x = 240 + Math.cos(a) * sp * k, y = 100 + Math.sin(a) * sp * k + 160 * k * k;
+      for (let i = 0; i < 40; i++) {
+        const a = hash1(i * 3) * TAU, sp = 500 + hash1(i * 5) * 900;
+        const x = 960 + Math.cos(a) * sp * k, y = 520 + Math.sin(a) * sp * k + 700 * k * k;
         g.save(); g.translate(x, y); g.rotate(k * 10 + i);
-        g.strokeStyle = '#7d73b5'; g.lineWidth = 2.2; g.beginPath(); g.ellipse(0, 0, 5, 3, 0, 0, TAU); g.stroke();
+        g.strokeStyle = '#4a4a5a'; g.lineWidth = 10; g.beginPath(); g.ellipse(0, 0, 26, 15, 0, 0, TAU); g.stroke();
+        g.strokeStyle = '#b0b0c8'; g.lineWidth = 3; g.beginPath(); g.ellipse(0, -3, 22, 11, 0, Math.PI * 1.1, Math.PI * 1.9); g.stroke();
         g.restore();
       }
-      glow(g, 240, 100, 120 * clamp(1 - k), '#ff2040', 0.8 * clamp(1 - k));
-      S.post.flash = clamp(1 - k * 4) * 0.7; S.post.flashColor = '#ff2040';
-      S.post.shake = k < 0.4 ? 3 : 0;
+      glow(g, 960, 520, 600 * clamp(1 - k), '#ff2040', 0.8 * clamp(1 - k));
+      S.post.flash = clamp(1 - k * 4) * 0.6; S.post.flashColor = '#ff2040';
+      S.post.shake = k < 0.4 ? 1.4 : 0;
     }
-  }, { pal: 'crypt', name: 'v2-chains' });
+  }, { name: 'v2-chains' });
 
-  // 62.65 – 65.60 "Now flesh and shadow wear my reins" — he mirrors her every step (2x)
+  // 62.65 – 65.60 he mirrors her every gesture; their shadows loom on the crypt wall
   NM.shot(62.65, 65.6, (g, S) => {
     const t = S.t, lt = S.lt;
-    const m = NM.MAPS.crypt;
-    const buf = NM._zoomBuf || (NM._zoomBuf = NM.canvas(W, H));
-    const bg = buf.getContext('2d'); bg.setTransform(1, 0, 0, 1, 0, 0);
-    const ax = m.altar.x, ay = m.altar.y + 20;
-    const iKeys = [[62.65, ax - 20, ay, 'right'], [63.3, ax - 20, ay, 'right'], [63.8, ax - 4, ay], [64.3, ax - 4, ay, 'down'], [64.8, ax - 20, ay], [65.6, ax - 20, ay, 'right']];
-    const iso = NM.walk(t, iKeys, 6);
-    // Lucien copies her motion exactly, mirrored, a beat later
-    const isoLate = NM.walk(t - 0.12, iKeys, 6);
-    const luc = { x: ax + 40 + (isoLate.x - (ax - 20)), y: ay, dir: isoLate.dir === 'right' ? 'left' : isoLate.dir === 'left' ? 'right' : isoLate.dir, frame: isoLate.frame };
-    const cam = { x: Math.round(ax + 10 - W / 2), y: Math.round(ay - 20 - H / 2) };
-    cryptScene(bg, S, { iso, luc, cam, dark: 0.55,
-      after: (q) => {
-        NM.chain(q, [iso.x + 6, iso.y - 14, (iso.x + luc.x) / 2, iso.y - 34, luc.x, luc.y - 18], 4, { color: '#ff3a52', thick: 1, glow: 0.5 });
-        if (lt > 1.9) NM.balloon(q, 'dots', luc.x, luc.y - 30, 1, lt - 1.9);
-      } });
-    g.imageSmoothingEnabled = false;
-    g.drawImage(buf, W / 4, H / 4 - 10, W / 2, H / 2, 0, 0, W, H);
-  }, { pal: 'crypt', name: 'v2-reins', in: { type: 'black', dur: 0.15 } });
+    const c = NM.cam3({ x: 0, y: 220, z: -200, f: 900, vy: H * 0.4 });
+    NM.interior(g, t, c, 'crypt', {});
+    const a = 0.9 + Math.sin(t * 2.2) * 0.7, a2 = 0.9 + Math.sin((t - 0.15) * 2.2) * 0.7;
+    const isoP = { dir: 1, armF: [a, 0.4], armB: [0.3, 0.4], expr: 'smirk', yaw: 0.45, glow: 0.6, wind: 0.4 };
+    const lucP = { dir: -1, armF: [a2, 0.4], armB: [0.3, 0.4], expr: 'hollow', yaw: 0.45, headTilt: 0.1 };
+    // giant shadows on the back wall
+    g.save(); g.globalCompositeOperation = 'multiply'; g.globalAlpha = 0.55;
+    NM.silhouette(g, '#100810', (q) => { q.translate(W / 2, 760); q.scale(1.7, 1.7); q.translate(-W / 2, -760); NM.figIsolde(q, 780, 760, 560, isoP, t, { noHead: true }); NM.figLucien(q, 1140, 760, 600, lucP, t, { noHead: true }); });
+    g.restore();
+    let hand;
+    NM.withRim(g, (q) => { hand = NM.figIsolde(q, 700, 1000, 820, isoP, t); NM.figLucien(q, 1240, 1000, 880, lucP, t); }, '#ffcf8a', -1, -0.5, 4, 0.6);
+    NM.chain(g, [hand.hand[0], hand.hand[1], 970, hand.hand[1] - 120, 1205, 312], 30, { color: '#ff3a52', thick: 6, glow: 0.8 });
+    S.post.grade = { shadow: '#0a0a14', light: '#ffc8a0', amount: 0.35 };
+  }, { name: 'v2-reins', in: { type: 'black', dur: 0.2 } });
 
   // ======================================================================
   // PRE-CHORUS 2  65.60 – 78.15
   // ======================================================================
-  // 65.60 – 68.55  he begs; the choice
   NM.shot(65.6, 68.55, (g, S) => {
     const t = S.t, lt = S.lt;
-    const m = NM.MAPS.crypt;
-    const ax = m.altar.x, ay = m.altar.y + 20;
-    const iso = { x: ax, y: ay - 20, dir: 'down', frame: 1 };
-    const luc = { x: ax, y: ay + 6, dir: 'up', frame: 1 };
-    cryptScene(g, S, { iso, luc, cam: { x: Math.round(ax - W / 2), y: Math.round(ay - H / 2 + 30) },
-      after: (q) => { NM.balloon(q, lt < 1.4 ? 'brokenheart' : 'sweat', luc.x, luc.y - 30, 1, t); NM.chain(q, [iso.x + 6, iso.y - 14, iso.x + 8, iso.y + 4, luc.x + 2, luc.y - 18], 4, { color: '#ff3a52', thick: 1, glow: 0.4 }); } });
+    const c = NM.cam3({ x: 0, y: 220, z: -200, f: 900, vy: H * 0.4 });
+    NM.interior(g, t, c, 'crypt', {});
+    NM.withRim(g, (q) => {
+      NM.figLucien(q, 1120, 1010, 820, { dir: -1, kneel: 1, armF: [2.3, 0.1], armB: [1.9, 0.2], expr: 'plead', yaw: 0.3, headTilt: -0.25 }, t);
+      NM.figIsolde(q, 760, 1010, 900, { dir: 1, armF: [0.3, 0.3], armB: [0.2, 0.3], expr: 'cold', yaw: 0.4, headTilt: 0.12, wind: 0.3 }, t);
+    }, '#ffcf8a', -1, -0.5, 4, 0.6);
     S.post.extraUI = [(u) => {
-      // his plea (small window, top)
-      const o1 = range(0.0, 0.15, lt) * (1 - range(1.3, 1.45, lt));
-      if (NM.uiWindow(u, 70, 14, 340, 58, o1)) {
-        NM.faceGraphic(u, 78, 19, 48, 'lucien', 'plead', t);
-        NM.uiText(u, 'Lucien', 134, 20, { color: '#b9e6ff' });
-        NM.uiText(u, 'Please... let me rest.', 134, 40);
+      const o1 = range(0.0, 0.25, lt) * (1 - range(1.25, 1.5, lt));
+      if (o1 > 0.01) {
+        NM.ornateBox(u, 420, 60, 1080, 170, o1);
+        NM.drawCameo(u, 520, 145, 58, 68, 'lucien', 'plead', o1);
+        NM.uiText(u, 'Lucien', 610, 118, { font: '40px "UnifrakturMaguntia"', color: '#bfe9ff', alpha: o1, shadow: 'rgba(120,180,255,0.6)', blur: 12 });
+        NM.uiText(u, 'Please... let me rest.', 610, 184, { alpha: o1 });
       }
-      // the choice
-      const o2 = range(1.35, 1.5, lt) * (1 - range(2.75, 2.9, lt));
-      const sel = lt > 2.0 ? 1 : 0;
-      NM.uiWindow(u, 70, 14, 340, 30, o2) && NM.uiText(u, 'Release his soul?', 84, 21, { color: '#ffd0d6' });
-      NM.choiceWindow(u, 140, 50, ['Let him rest in peace', 'Never. He stays.'], sel, o2, lt > 2.45 ? t * 3 : t, { w: 200, colors: ['#9a92b8', '#ff5a6e'] });
+      const o2 = range(1.35, 1.6, lt) * (1 - range(2.7, 2.95, lt));
+      NM.choiceCard(u, t, 'Release his soul?', ['Let him rest in peace', 'Never. He stays.'], lt > 2.0 ? 1 : 0, o2, lt > 2.45);
     }];
-    if (lt > 2.45 && lt < 2.65) S.post.flash = 0.35;
-  }, { pal: 'crypt', name: 'p2-choice', in: { type: 'black', dur: 0.2 } });
+    if (lt > 2.45 && lt < 2.65) S.post.flash = 0.3;
+    S.post.grade = { shadow: '#0a0a14', light: '#ffc8a0', amount: 0.35 };
+  }, { name: 'p2-choice', in: { type: 'black', dur: 0.2 } });
 
-  // 68.55 – 71.65 the light comes for him; she drags his soul back
   NM.shot(68.55, 71.65, (g, S) => {
     const t = S.t, lt = S.lt;
-    const m = NM.MAPS.crypt;
-    const ax = m.altar.x, ay = m.altar.y + 20;
-    const iso = { x: ax - 50, y: ay, dir: 'right', frame: 1 };
-    const luc = { x: ax + 20, y: ay, dir: 'down', frame: 1 };
+    const c = NM.cam3({ x: 0, y: 220, z: -200, f: 900, vy: H * 0.4 });
+    NM.interior(g, t, c, 'crypt', {});
     const light = range(0.1, 0.6, lt) * (1 - range(1.9, 2.05, lt));
     const up = ease.outCubic(clamp((lt - 0.6) / 1.1));
     const back = ease.inCubic(clamp((lt - 1.75) / 0.3));
-    const gy = luc.y - up * 50 * (1 - back);
-    const cam = cryptScene(g, S, { iso, luc, cam: { x: Math.round(ax - W / 2), y: Math.round(ay - H / 2 + 20) }, dark: 0.66,
-      items: (items) => items.push({ y: luc.y + 1, draw: (q) => {
-        if (light > 0) NM.shaft(q, luc.x, luc.y - 140, 18, luc.x, luc.y, 30, '#f2f0ea', 0.35 * light);
-        if (up > 0 && back < 1) NM.drawChar(q, 'ghost', luc.x, gy, 'down', Math.floor(t * 6) % 3, { alpha: 0.75, shadow: false });
-      } }),
-      after: (q) => {
-        if (lt > 1.45) {
-          const r = clamp((lt - 1.45) / 0.3);
-          NM.chain(q, [iso.x + 6, iso.y - 14, (iso.x + luc.x) / 2, gy - 30, luc.x, gy - 14], 4, { color: '#ff3a52', thick: 1.2, reveal: r, glow: 0.7 });
-          NM.balloon(q, 'anger', iso.x, iso.y - 30, 1, t);
-        }
-        if (up > 0.2 && lt < 1.6) NM.balloon(q, 'note', luc.x + 14, gy - 30, 1, t);
-      },
-      lights: (c) => [{ x: luc.x - c.x, y: luc.y - 30 - c.y, r: 90 * light + 10, color: '#f2f0ea', ca: 0.2 * light }] });
-    if (lt > 2.0 && lt < 2.4) { S.post.flash = 0.6 * (1 - (lt - 2.0) / 0.4); S.post.flashColor = '#ff2040'; S.post.shake = 3; }
-  }, { pal: 'crypt', name: 'p2-light' });
+    if (light > 0) { NM.shaft(g, 1180, -40, 260, 1180, 1040, 520, '#fff4e0', 0.45 * light); glow(g, 1180, 300, 600, '#fff4e0', 0.3 * light); }
+    let hand;
+    NM.withRim(g, (q) => {
+      NM.figLucien(q, 1180, 1010, 860, { dir: -1, armF: [0.6 + light * 0.6, 0.3], armB: [0.5 + light * 0.5, 0.3], expr: light > 0.5 ? 'sleep' : 'pain', yaw: 0.2, headTilt: -0.3 * light }, t);
+      hand = NM.figIsolde(q, 640, 1010, 860, { dir: 1, armF: lt > 1.45 ? [1.6, 0.0] : [0.3, 0.3], armB: [0.3, 0.3], expr: lt > 1.45 ? 'crazed' : 'cold', glow: lt > 1.45 ? 1 : 0, yaw: 0.4, wind: 0.6 }, t);
+    }, light > 0.2 ? '#fff4e0' : '#ffcf8a', 0, -1, 4, 0.7);
+    const gy0 = 640 - up * 380 * (1 - back);
+    if (up > 0 && back < 1) NM.figGhost(g, 1180, gy0, 520, t, { alpha: 0.8, expr: 'sleep' });
+    if (lt > 1.45) NM.chain(g, [hand.hand[0], hand.hand[1], 900, gy0 - 300, 1180, gy0 - 280], 30, { color: '#ff3a52', thick: 6, reveal: clamp((lt - 1.45) / 0.3), glow: 0.9 });
+    if (lt > 2.0 && lt < 2.4) { S.post.flash = 0.6 * (1 - (lt - 2.0) / 0.4); S.post.flashColor = '#ff2040'; S.post.shake = 1.4; }
+    S.post.grade = { shadow: '#0a0a14', light: '#fff0d8', amount: 0.35 };
+  }, { name: 'p2-light' });
 
-  // 71.65 – 74.75 STATUS screen: his heartbeat slows
+  // 71.65 – 74.75 the dossier: his heartbeat slows
   NM.shot(71.65, 74.75, (g, S) => {
     const t = S.t, lt = S.lt;
-    g.fillStyle = '#0f0f1e'; g.fillRect(0, 0, W, H);
-    for (let y = 0; y < H; y += 8) { g.fillStyle = y % 16 ? '#141428' : '#121226'; g.fillRect(0, y, W, 8); }
-    NM.lucienFace(g, 110, 104, 150, lt < 1.6 ? 'hollow' : 'pain', t, 0.15);
-    const hp = Math.max(0.01, 0.4 - lt * 0.12);
+    // dark desk
+    const dg = g.createLinearGradient(0, 0, 0, H); dg.addColorStop(0, '#1a100c'); dg.addColorStop(1, '#0a0605');
+    g.fillStyle = dg; g.fillRect(0, 0, W, H);
+    for (let i = 0; i < 30; i++) { g.strokeStyle = 'rgba(60,40,24,0.25)'; g.lineWidth = 3; g.beginPath(); g.moveTo(0, i * 38 + 10); g.bezierCurveTo(600, i * 38 + 20, 1300, i * 38, W, i * 38 + 14); g.stroke(); }
+    glow(g, 1300, 520, 900, '#ffb060', 0.25);
+    // parchment page
+    g.save(); g.translate(1240, 540); g.rotate(-0.03);
+    const pg = g.createRadialGradient(0, 0, 100, 0, 0, 640); pg.addColorStop(0, '#e8d8b4'); pg.addColorStop(0.75, '#c8a878'); pg.addColorStop(1, '#6a4a28');
+    g.fillStyle = pg; g.fillRect(-540, -440, 1080, 880);
+    for (let i = 0; i < 8; i++) softShade(g, (hash1(i) - 0.5) * 900, (hash1(i * 3) - 0.5) * 700, 60 + hash1(i * 5) * 90, 40 + hash1(i * 7) * 60, '#8a6a40', 0.3);
+    g.restore();
+    // pinned portrait photograph
+    g.save(); g.translate(430, 500); g.rotate(0.05);
+    g.fillStyle = '#e8dcc0'; g.fillRect(-300, -380, 600, 760);
+    g.save(); g.beginPath(); g.rect(-270, -350, 540, 680); g.clip();
+    g.fillStyle = '#2a2a34'; g.fillRect(-270, -350, 540, 680);
+    NM.paintLucien(g, 0, -40, 520, lt < 1.6 ? 'hollow' : 'pain', t, { noBlink: false, yaw: 0.15 });
+    g.restore();
+    g.fillStyle = '#7a0e22'; g.beginPath(); g.arc(0, -360, 14, 0, TAU); g.fill();
+    g.restore();
+    const rate = lerp(1.6, 0.3, clamp(lt / 3));
+    const ph = (lt * rate) % 1;
     S.post.extraUI = [(u) => {
-      const o = range(0, 0.15, lt);
-      NM.uiWindow(u, 214, 10, 258, 182, o) && (() => {
-        NM.uiText(u, 'Lucien', 228, 18, { color: '#b9e6ff' });
-        NM.uiText(u, 'Husband', 330, 18, { color: '#9a92b8' });
-        NM.uiText(u, 'Lv  27', 228, 40);
-        NM.uiText(u, 'HP', 228, 62, { color: '#ff8a9a' }); NM.uiText(u, `${Math.round(hp * 412)} / 412`, 330, 62);
-        NM.gauge(u, 228, 82, 228, hp, '#c4122f', '#ff8a9a');
-        NM.uiText(u, 'SOUL', 228, 92, { color: '#b9e6ff' }); NM.uiText(u, 'BOUND', 330, 92, { color: '#ff3a52' });
-        NM.gauge(u, 228, 112, 228, 1, '#7a0e22', '#ff3a52');
-        NM.uiText(u, 'State', 228, 124, { color: '#9a92b8' });
-        NM.uiText(u, 'Undead  Cursed  Puppet', 228, 144, { color: '#ff5a6e' });
-        // heartbeat: pulses slow down and fade
-        const rate = lerp(1.6, 0.35, clamp(lt / 3));
-        const ph = (lt * rate) % 1;
-        const beat = ph < 0.12 ? 1 : 0;
-        NM.uiText(u, 'Heart', 228, 166, { color: '#9a92b8' });
-        u.fillStyle = '#c4122f';
-        for (let x = 0; x < 150; x++) {
-          const xx = (x / 150 + ph) % 1;
-          const yy = xx > 0.48 && xx < 0.52 ? -8 * Math.sin((xx - 0.48) / 0.04 * Math.PI) * (1 - clamp(lt / 3.2)) : 0;
-          u.fillRect(300 + x, 176 + Math.round(yy), 1, 1);
-        }
-        if (beat) NM.balloon(u, 'heart', 464, 182, 1, t);
-      })();
+      const ink = '#2a1810';
+      NM.uiText(u, 'Lucien Ashgrove', 760, 220, { font: '64px "UnifrakturMaguntia"', color: '#3a0a10', shadow: 'rgba(0,0,0,0)', blur: 0 });
+      NM.uiText(u, 'beloved husband  ·  1849 – 1878', 764, 280, { font: 'italic 38px "IM Fell English"', color: ink, shadow: 'rgba(0,0,0,0)', blur: 0 });
+      const rows = [['Condition', 'Undead'], ['Soul', 'Bound to Isolde'], ['State', 'Cursed  ·  Puppet'], ['Vitality', '']];
+      rows.forEach(([k, v], i) => {
+        NM.uiText(u, k, 764, 380 + i * 80, { font: '40px "Cinzel"', color: ink, shadow: 'rgba(0,0,0,0)', blur: 0 });
+        NM.uiText(u, v, 1080, 380 + i * 80, { font: 'italic 44px "IM Fell English"', color: i ? '#7a0e22' : ink, shadow: 'rgba(0,0,0,0)', blur: 0 });
+      });
+      const vit = Math.max(0.02, 0.35 - lt * 0.1);
+      u.fillStyle = 'rgba(42,24,16,0.4)'; u.fillRect(1080, 600, 560, 18); u.fillStyle = '#7a0e22'; u.fillRect(1080, 600, 560 * vit, 18);
+      NM.uiText(u, 'Heart', 764, 760, { font: '40px "Cinzel"', color: ink, shadow: 'rgba(0,0,0,0)', blur: 0 });
+      u.strokeStyle = '#8a0a1e'; u.lineWidth = 4; u.beginPath();
+      for (let x = 0; x <= 620; x += 4) {
+        const xx = (x / 620 + ph) % 1;
+        const yy = xx > 0.47 && xx < 0.53 ? -60 * Math.sin((xx - 0.47) / 0.06 * Math.PI) * (1 - clamp(lt / 3.2)) : 0;
+        x ? u.lineTo(1040 + x, 750 + yy) : u.moveTo(1040 + x, 750 + yy);
+      }
+      u.stroke();
     }];
-  }, { pal: 'corpse', name: 'p2-status', in: { type: 'black', dur: 0.15 } });
+    S.post.grade = { shadow: '#140a06', light: '#ffd8a8', amount: 0.3 };
+  }, { name: 'p2-status', paint: { r: 4 }, in: { type: 'black', dur: 0.2 } });
 
-  // 74.75 – 77.50 "A puppet now in death's charade" — the marionette theatre
+  // 74.75 – 77.50 the marionette theatre
   NM.shot(74.75, 77.5, (g, S) => {
     const t = S.t, lt = S.lt;
-    g.fillStyle = '#0e0709'; g.fillRect(0, 0, W, H);
-    // stage floor + spotlight
-    g.fillStyle = '#35151b'; g.fillRect(60, 188, 360, 40);
-    for (let x = 60; x < 420; x += 24) { g.fillStyle = '#1f0e12'; g.fillRect(x, 188, 1, 40); }
-    NM.shaft(g, 240, 0, 40, 240, 200, 200, '#fde4d6', 0.22);
-    glow(g, 240, 190, 90, '#f6b9a6', 0.3);
-    // marionette: jerky motion driven by the strings
-    NM.shaft(g, 240, 0, 60, 240, 200, 230, '#fde4d6', 0.3);
-    glow(g, 240, 140, 110, '#ec8a7a', 0.35);
+    g.fillStyle = '#080406'; g.fillRect(0, 0, W, H);
+    const fg = g.createLinearGradient(0, 760, 0, 920); fg.addColorStop(0, '#4a2a18'); fg.addColorStop(1, '#1a0c06');
+    g.fillStyle = fg; g.fillRect(240, 760, 1440, 160);
+    for (let x = 240; x < 1680; x += 96) { g.fillStyle = 'rgba(0,0,0,0.4)'; g.fillRect(x, 760, 3, 160); }
+    NM.shaft(g, 960, -40, 200, 960, 800, 900, '#fff0d8', 0.32);
+    softShade(g, 960, 770, 460, 70, '#fff0d8', 0.45, 'screen');
     const j = (a) => Math.sin(t * 5 + a) * 0.5 + Math.sin(t * 9.3 + a * 2) * 0.25;
-    const bob = Math.abs(Math.sin(t * 5)) * 6;
-    const pose = { dir: 1, armF: [1.7 + j(0) * 0.8, -0.6], armB: [1.2 + j(1) * 0.8, -0.5], legF: [0.4 + j(2) * 0.4, -0.3], legB: [-0.2 + j(3) * 0.4, 0.5], headTilt: 0.35 + j(4) * 0.2, expr: 'hollow', turn: 0.3 };
-    const lp = NM.figLucien(g, 236, 190 - bob, 150, pose, t, { colors: { coat: '#4a2a38', coatHi: '#7c2630', rim: '#d0554f', pants: '#2a1a24' } });
-    // control bar and her gloved hands above
-    const bx = 240 + Math.sin(t * 2.5) * 16, by = 18 + Math.sin(t * 5) * 4;
-    const knees = [[lp.chest[0] - 6, 190 - bob - 34], [lp.chest[0] + 10, 190 - bob - 30]];
+    const bob = Math.abs(Math.sin(t * 5)) * 24;
+    const pose = { dir: 1, armF: [1.7 + j(0) * 0.8, -0.6], armB: [1.2 + j(1) * 0.8, -0.5], legF: [0.4 + j(2) * 0.4, -0.3], legB: [-0.2 + j(3) * 0.4, 0.5], headTilt: 0.35 + j(4) * 0.2, expr: 'hollow', yaw: 0.2 };
+    let lp;
+    NM.withRim(g, (q) => { lp = NM.figLucien(q, 944, 770 - bob, 620, pose, t); }, '#fff0d8', 0, -1, 4, 0.8);
+    const bx = 960 + Math.sin(t * 2.5) * 64, by = 70 + Math.sin(t * 5) * 16;
+    const knees = [[lp.chest[0] - 24, 770 - bob - 140], [lp.chest[0] + 40, 770 - bob - 120]];
     const ends = [lp.hand2, lp.hand, lp.head, ...knees].sort((a, b) => a[0] - b[0]);
-    g.strokeStyle = '#fde4d6'; g.lineWidth = 1;
-    ends.forEach(([x, y], i) => { g.beginPath(); g.moveTo(bx - 44 + i * 22, by + 6); g.lineTo(x, y); g.stroke(); });
-    g.fillStyle = '#7c2630'; g.fillRect(bx - 50, by, 100, 6); g.fillStyle = '#a8353a'; g.fillRect(bx - 50, by, 100, 1); g.fillRect(bx - 4, by - 12, 8, 28);
-    NM.handGlove(g, bx - 64, by - 6, 60, 0.25, 0.8, '#1f0e12', '#ec8a7a');
-    NM.handGlove(g, bx + 66, by - 4, 60, Math.PI - 0.25, 0.8, '#1f0e12', '#ec8a7a');
-    // curtains
+    g.strokeStyle = 'rgba(255,240,220,0.75)'; g.lineWidth = 2;
+    ends.forEach(([x, y], i) => { g.beginPath(); g.moveTo(bx - 176 + i * 88, by + 24); g.lineTo(x, y); g.stroke(); });
+    const bg2 = g.createLinearGradient(0, by, 0, by + 24); bg2.addColorStop(0, '#8a5a30'); bg2.addColorStop(1, '#3a2010');
+    g.fillStyle = bg2; g.fillRect(bx - 200, by, 400, 24); g.fillRect(bx - 16, by - 48, 32, 112);
+    // velvet curtains
     for (const side of [-1, 1]) {
-      g.fillStyle = '#7c2630';
-      g.beginPath(); g.moveTo(240 + side * 240, 0); g.lineTo(240 + side * 160, 0);
-      g.quadraticCurveTo(240 + side * 150, 120, 240 + side * 196, 230); g.lineTo(240 + side * 240, 230); g.closePath(); g.fill();
-      g.strokeStyle = '#561d25'; g.lineWidth = 3;
-      for (let k = 0; k < 4; k++) { g.beginPath(); g.moveTo(240 + side * (170 + k * 18), 0); g.quadraticCurveTo(240 + side * (160 + k * 18), 120, 240 + side * (200 + k * 10), 230); g.stroke(); }
+      const cx0 = 960 + side * 960, cx1 = 960 + side * 640;
+      const cg = g.createLinearGradient(cx1, 0, cx0, 0);
+      cg.addColorStop(0, '#5a0a16'); cg.addColorStop(0.5, '#a3122a'); cg.addColorStop(1, '#3a040c');
+      g.fillStyle = cg;
+      g.beginPath(); g.moveTo(cx0, 0); g.lineTo(cx1, 0); g.quadraticCurveTo(960 + side * 600, 480, 960 + side * 784, 920); g.lineTo(cx0, 920); g.closePath(); g.fill();
+      for (let k = 0; k < 5; k++) { g.strokeStyle = k % 2 ? 'rgba(20,0,4,0.45)' : 'rgba(255,90,110,0.18)'; g.lineWidth = 22; g.beginPath(); g.moveTo(960 + side * (680 + k * 60), 0); g.quadraticCurveTo(960 + side * (640 + k * 60), 480, 960 + side * (800 + k * 34), 920); g.stroke(); }
     }
-    g.fillStyle = '#561d25'; g.fillRect(0, 0, W, 12); for (let x = 0; x < W; x += 16) { g.beginPath(); g.arc(x + 8, 12, 8, 0, Math.PI); g.fill(); }
-  }, { pal: 'blood', name: 'p2-puppet', in: { type: 'black', dur: 0.2 } });
+    g.fillStyle = '#3a040c'; g.fillRect(0, 0, W, 50);
+    for (let x = 0; x < W; x += 64) { g.fillStyle = '#5a0a16'; g.beginPath(); g.arc(x + 32, 50, 32, 0, Math.PI); g.fill(); }
+    NM.withRim(g, (q) => {
+      NM.paintHand(q, bx - 170, by - 95, 200, Math.PI / 2 + 0.12, { kind: 'glove', curl: 0.75, spread: 0.1, arm: 110, armW: 26, sleeve: '#0e0b14', sleeveHi: '#4a3a5e', cuff: 'lace', ring: '#ff3a52', light: -1 });
+      NM.paintHand(q, bx + 170, by - 95, 200, Math.PI / 2 - 0.12, { kind: 'glove', flip: true, curl: 0.75, spread: 0.1, arm: 110, armW: 26, sleeve: '#0e0b14', sleeveHi: '#4a3a5e', cuff: 'lace', light: -1 });
+    }, '#fff0d8', 0, -1, 3, 0.6);
+    S.post.grade = { shadow: '#14040a', light: '#fff0d8', amount: 0.3 };
+  }, { name: 'p2-puppet', in: { type: 'black', dur: 0.2 } });
 
-  // 77.50 – 78.15 dropout: one last heartbeat, then nothing
   NM.shot(77.5, 78.15, (g, S) => {
     g.fillStyle = '#000'; g.fillRect(0, 0, W, H);
     const lt = S.lt;
-    if (lt < 0.25) { glow(g, 240, 120, 30, '#ff2040', 0.6 * (1 - lt * 4)); g.fillStyle = '#c4122f'; g.fillRect(234, 114, 5, 4); g.fillRect(241, 114, 5, 4); g.fillRect(233, 116, 14, 4); g.fillRect(235, 120, 10, 3); g.fillRect(237, 123, 6, 2); g.fillRect(239, 125, 2, 1); }
+    if (lt < 0.3) { const k = 1 - lt / 0.3; glow(g, 960, 520, 220, '#ff2040', 0.7 * k); glow(g, 960, 520, 60, '#ff6070', k); }
     S.post.ui = 'none';
-  }, { pal: 'blood', name: 'p2-drop' });
+  }, { name: 'p2-drop' });
 })();

@@ -14,7 +14,7 @@ let prev = 0, bad = 0;
 for (const s of shots) {
   const flag = Math.abs(s.start - prev) > 1e-6 ? (s.start > prev ? `  <-- GAP ${(s.start - prev).toFixed(2)}s` : `  <-- OVERLAP ${(prev - s.start).toFixed(2)}s`) : '';
   if (flag) bad++;
-  console.log(`${s.start.toFixed(2).padStart(7)} - ${s.end.toFixed(2).padStart(7)}  ${s.pal.padEnd(9)} ${s.name}${flag}`);
+  console.log(`${s.start.toFixed(2).padStart(7)} - ${s.end.toFixed(2).padStart(7)}  ${s.name}${flag}`);
   prev = s.end;
 }
 console.log(`${shots.length} shots, ${bad} problems`, errs.length ? errs : '');
