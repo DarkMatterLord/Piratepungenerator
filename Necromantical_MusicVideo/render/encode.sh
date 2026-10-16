@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # Encode the rendered JPEG frame sequence + the song into the final MP4.
-#   bash render/encode.sh [frames_dir] [output.mp4] [crf] [tune]   (pixel style: crf 16, tune animation)
+#   bash render/encode.sh [frames_dir] [output.mp4] [crf] [tune]   (defaults: crf 20, tune animation)
 set -euo pipefail
 cd "$(dirname "$0")/.."
 FRAMES="${1:-build/frames}"
 OUT="${2:-build/Necromantical_MusicVideo_1080p.mp4}"
-CRF="${3:-16}"
+CRF="${3:-20}"
 TUNE="${4:-animation}"
 ffmpeg -y -hide_banner -loglevel warning -stats \
   -framerate 30 -i "$FRAMES/f_%06d.jpg" \
