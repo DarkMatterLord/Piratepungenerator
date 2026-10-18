@@ -1,0 +1,11 @@
+# Audio build for "Trump Likes Turtles" (python3 audio/build_song.py). Also needs ffmpeg with libmp3lame.
+numpy>=2.0
+scipy>=1.13
+soundfile>=0.12
+piper-tts==1.8.0        # stock TTS voice (en_US-joe-medium, downloaded to build/cache/)
+onnx>=1.16              # patches the Piper model so phoneme durations can be set
+onnxruntime>=1.18
+pyworld==0.3.5          # WORLD vocoder (re-pitching)
+pyloudnorm>=0.1.1       # loudness normalisation (-14 LUFS)
+matplotlib>=3.8         # QA plots
+faster-whisper>=1.0     # QA: intelligibility check (and optional take picking)

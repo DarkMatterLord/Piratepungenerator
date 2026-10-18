@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trump Likes Turtles</title>
+<style>
+  @font-face { font-family: 'Luckiest Guy'; src: url('fonts/luckiest-guy.woff2') format('woff2'); font-display: block; }
+  @font-face { font-family: 'Press Start 2P'; src: url('fonts/press-start-2p.woff2') format('woff2'); font-display: block; }
+  @font-face { font-family: 'Permanent Marker'; src: url('fonts/permanent-marker.woff2') format('woff2'); font-display: block; }
+  :root { --bg: #0d0f1a; --panel: #171a2b; --text: #f3f1ea; --muted: #9aa0b8; --accent: #ffd84a; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif; }
+  body { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 16px; min-height: 100%; }
+  h1 { font-family: 'Luckiest Guy', sans-serif; font-weight: 400; letter-spacing: 0.02em; margin: 0; font-size: clamp(22px, 4vw, 34px); color: var(--accent); }
+  h1 span { color: #7fd36b; }
+  .stage { position: relative; width: min(100%, calc((100vh - 170px) * 16 / 9)); aspect-ratio: 16 / 9; border-radius: 14px; overflow: hidden; box-shadow: 0 18px 60px rgba(0,0,0,0.55); background: #000; }
+  canvas { width: 100%; height: 100%; display: block; }
+  .start { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: radial-gradient(circle, rgba(13,15,26,0.35), rgba(13,15,26,0.8)); border: 0; cursor: pointer; color: var(--text); font: inherit; }
+  .start .btn { display: flex; align-items: center; gap: 12px; padding: 16px 28px; border-radius: 999px; background: var(--accent); color: #1a1405; font-family: 'Luckiest Guy', sans-serif; font-size: clamp(18px, 3vw, 28px); box-shadow: 0 8px 30px rgba(255,216,74,0.35); }
+  .bar { width: min(100%, calc((100vh - 170px) * 16 / 9)); display: flex; align-items: center; gap: 12px; background: var(--panel); border-radius: 12px; padding: 10px 14px; }
+  .bar button { background: transparent; border: 1px solid #2c3150; color: var(--text); border-radius: 8px; padding: 6px 12px; cursor: pointer; font: inherit; font-size: 14px; }
+  .bar button:hover { border-color: var(--accent); }
+  .bar input[type=range] { flex: 1; accent-color: var(--accent); }
+  .time { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 14px; min-width: 92px; text-align: right; }
+  .opts { display: flex; gap: 10px; color: var(--muted); font-size: 13px; }
+  .opts label { display: flex; align-items: center; gap: 4px; cursor: pointer; }
+  @media (max-width: 640px) { .opts { display: none; } .bar { gap: 8px; padding: 8px 10px; } }
+  body.render { padding: 0; gap: 0; background: #000; }
+  body.render h1, body.render .bar, body.render .start { display: none; }
+  body.render .stage { width: auto; border-radius: 0; box-shadow: none; }
+</style>
+</head>
+<body>
+<h1>Trump Likes <span>Turtles</span></h1>
+<div class="stage">
+  <canvas id="c" width="1280" height="720"></canvas>
+  <button class="start" id="start" aria-label="Play"><span class="btn">&#9654; Play the song</span></button>
+</div>
+<div class="bar">
+  <button id="play" aria-label="Play or pause">&#9654;</button>
+  <input id="seek" type="range" min="0" max="40" step="0.01" value="0" aria-label="Seek">
+  <span class="time" id="time">0.0 / 40.0</span>
+  <div class="opts">
+    <label><input type="checkbox" id="optCap" checked> Lyrics</label>
+    <label><input type="checkbox" id="optLab" checked> Style names</label>
+  </div>
+</div>
+<audio id="audio" src="song.mp3" preload="auto"></audio>
+
+<script src="js/score.js"></script>
+<script src="js/util.js"></script>
+<script src="js/rig.js"></script>
+<script src="js/story.js"></script>
+<script src="js/render2d.js"></script>
+<script src="js/render3d.js"></script>
+<script src="js/styles2d.js"></script>
+<script src="js/styles2d_b.js"></script>
+<script src="js/styles.js"></script>
+<script src="js/main.js"></script>
+<script>
+(() => {
+  const params = new URLSearchParams(location.search);
+  const canvas = document.getElementById('c');
+  const res = parseInt(params.get('res') || '720', 10);
+  canvas.height = res; canvas.width = Math.round(res * 16 / 9);
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  const fontsReady = Promise.all(["40px 'Luckiest Guy'", "20px 'Press Start 2P'", "40px 'Permanent Marker'"].map((f) => document.fonts.load(f))).catch(() => {});
+
+  // Headless rendering hook used by render/render.js
+  if (params.has('render')) {
+    document.body.classList.add('render');
+    window.renderAt = async (t) => { await fontsReady; return APP.renderFrame(ctx, t, W, H).index; };
+    window.renderReady = fontsReady.then(() => true);
+    return;
+  }
+
+  const audio = document.getElementById('audio');
+  const seek = document.getElementById('seek');
+  const timeEl = document.getElementById('time');
+  const playBtn = document.getElementById('play');
+  let playing = false, started = false, clock = 0, lastNow = 0, haveAudio = true;
+  audio.addEventListener('error', () => { haveAudio = false; });
+  let t = parseFloat(params.get('t') || '0') || 0;
+
+  function now() { return haveAudio ? audio.currentTime : clock; }
+  function setPlaying(p) {
+    playing = p;
+    if (p) started = true;
+    playBtn.innerHTML = p ? '&#10074;&#10074;' : '&#9654;';
+    document.getElementById('start').style.display = 'none';
+    if (p) {
+      if (t >= APP.DUR - 0.05) t = 0;
+      lastNow = performance.now(); clock = t;
+      if (haveAudio) { audio.currentTime = t; audio.play().catch(() => { haveAudio = false; }); }
+    } else if (haveAudio) audio.pause();
+  }
+  function seekTo(v) { started = true; t = Math.max(0, Math.min(APP.DUR - 0.001, v)); clock = t; if (haveAudio) audio.currentTime = t; }
+  document.getElementById('start').onclick = () => setPlaying(true);
+  playBtn.onclick = () => setPlaying(!playing);
+  seek.oninput = () => seekTo(parseFloat(seek.value));
+  document.getElementById('optCap').onchange = (e) => (APP.opts.captions = e.target.checked);
+  document.getElementById('optLab').onchange = (e) => (APP.opts.label = e.target.checked);
+  addEventListener('keydown', (e) => {
+    if (e.code === 'Space') { e.preventDefault(); setPlaying(!playing); }
+    if (e.code === 'ArrowRight') seekTo(Math.floor(t / 0.5 + 1e-6) * 0.5 + 0.5);
+    if (e.code === 'ArrowLeft') seekTo(Math.floor(t / 0.5 + 1e-6) * 0.5 - 0.5);
+  });
+  audio.addEventListener('ended', () => { setPlaying(false); t = APP.DUR - 0.001; });
+
+  function frame(ts) {
+    if (playing) {
+      if (haveAudio) t = audio.currentTime;
+      else { clock += (ts - lastNow) / 1000; t = clock; }
+      lastNow = ts;
+      if (t >= APP.DUR) { t = APP.DUR - 0.001; setPlaying(false); }
+    }
+    // before the first play, show a poster frame with the title card
+    APP.renderFrame(ctx, started || t > 0 ? t : 1.25, W, H);
+    seek.value = t.toFixed(2);
+    timeEl.textContent = `${t.toFixed(1)} / ${APP.DUR.toFixed(1)}`;
+    requestAnimationFrame(frame);
+  }
+  fontsReady.then(() => requestAnimationFrame(frame));
+})();
+</script>
+</body>
+</html>
