@@ -5,6 +5,8 @@ befriending a turtle on the White House lawn. **The animation style changes ever
 second — 80 styles in 40 seconds** — while the story, characters, camera and choreography
 stay continuous, so it plays as one coherent cartoon that just keeps changing its skin.
 
+![All 80 styles, one frame per beat](contact-sheet.jpg)
+
 - **Watch:** `trump-likes-turtles.mp4` (1280×720, 30 fps, 40.0 s)
 - **Play it live in a browser:** open `index.html` (lyrics and style labels can be toggled;
   ←/→ steps one beat / one style, space plays/pauses)
@@ -49,10 +51,94 @@ different way of rendering the *same* puppet scene at the *same* moment:
 
 The vocals are sung by a stock text-to-speech narrator voice that is pitched and timed onto
 the melody (auto-tune style). It is deliberately not an imitation of Donald Trump's voice.
+The TTS model is driven phoneme by phoneme so every vowel starts on its note, then the WORLD
+vocoder snaps the pitch to the melody. As an intelligibility check, Whisper transcribes the
+sung vocal track with a 1.4% word error rate (6.8% on the full mix).
 
 ## The 80 styles
 
-STYLE_TABLE
+| # | Time | Style | Kind | What happens |
+|---|---|---|---|---|
+| 1 | 0.0s | Classic Cartoon | 2D | Title card over the White House at dawn |
+| 2 | 0.5s | 3D Animated Feature | 3D |  |
+| 3 | 1.0s | Watercolor | ART |  |
+| 4 | 1.5s | 8-Bit Pixel Art | RETRO |  |
+| 5 | 2.0s | Paper Cut-Out Stop-Motion | STOP-MOTION | Trump strolls onto the South Lawn and waves |
+| 6 | 2.5s | Oil Painting | ART |  |
+| 7 | 3.0s | Low-Poly 3D | 3D |  |
+| 8 | 3.5s | 1930s Rubber Hose | 2D |  |
+| 9 | 4.0s | Anime Cel-Shaded 3D | 3D | Walking across the lawn toward the pond |
+| 10 | 4.5s | Kid's Crayon Drawing | 2D |  |
+| 11 | 5.0s | Toy Brick Stop-Motion | STOP-MOTION |  |
+| 12 | 5.5s | Ukiyo-e Woodblock | ART |  |
+| 13 | 6.0s | Security Camera | OTHER |  |
+| 14 | 6.5s | Felt Puppet Stop-Motion | STOP-MOTION |  |
+| 15 | 7.0s | Comic Book | 2D |  |
+| 16 | 7.5s | Voxel 3D | 3D |  |
+| 17 | 8.0s | Pencil Sketch | ART | Spots a shell, the turtle pops out, he kneels to shake its flipper |
+| 18 | 8.5s | Vinyl Toy | 3D |  |
+| 19 | 9.0s | Stained Glass | ART |  |
+| 20 | 9.5s | Fuse Beads | CRAFT |  |
+| 21 | 10.0s | ASCII Art | RETRO |  |
+| 22 | 10.5s | Claymation | CLAYMATION |  |
+| 23 | 11.0s | Cross-Stitch | CRAFT | A heart appears |
+| 24 | 11.5s | Golden Statue | 3D |  |
+| 25 | 12.0s | Epic Anime | 2D | Lifts the turtle to the sky |
+| 26 | 12.5s | Marble Statue | 3D |  |
+| 27 | 13.0s | Pop Art | ART |  |
+| 28 | 13.5s | Renaissance Fresco | ART |  |
+| 29 | 14.0s | Hologram | 3D | Spins around with it |
+| 30 | 14.5s | 90s Paint Program | RETRO |  |
+| 31 | 15.0s | Crochet Amigurumi | CRAFT |  |
+| 32 | 15.5s | 4-Shade Handheld LCD | RETRO |  |
+| 33 | 16.0s | Synthwave Neon | 2D | Sets it down; they dance (TREMENDOUS!) |
+| 34 | 16.5s | Modeling Dough | CLAYMATION |  |
+| 35 | 17.0s | Ink Wash (Sumi-e) | ART |  |
+| 36 | 17.5s | Balloon Animals | 3D |  |
+| 37 | 18.0s | Rotoscope | 2D | Double thumbs-up |
+| 38 | 18.5s | Origami Papercraft | CRAFT |  |
+| 39 | 19.0s | Chalkboard | 2D | Points at the turtle |
+| 40 | 19.5s | Thermal Camera | OTHER |  |
+| 41 | 20.0s | Picture Book Gouache | 2D | Feeds it lettuce (crunch crunch) |
+| 42 | 20.5s | Plush Toy | CRAFT |  |
+| 43 | 21.0s | Cubism | ART |  |
+| 44 | 21.5s | Plasticine Close-Up | CLAYMATION |  |
+| 45 | 22.0s | Blue Porcelain | 3D | Puts a tiny red hat on it |
+| 46 | 22.5s | Pointillism | ART |  |
+| 47 | 23.0s | Terracotta Clay Relief | CLAYMATION |  |
+| 48 | 23.5s | Roman Mosaic | ART |  |
+| 49 | 24.0s | Newspaper Halftone | 2D | Press conference on the lawn, cameras flashing |
+| 50 | 24.5s | VHS Tape | RETRO |  |
+| 51 | 25.0s | Courtroom Sketch | ART |  |
+| 52 | 25.5s | Film Noir 3D | 3D |  |
+| 53 | 26.0s | Victorian Engraving | ART | Points at the turtle on the podium |
+| 54 | 26.5s | Night Vision | OTHER |  |
+| 55 | 27.0s | Comic Strip | 2D |  |
+| 56 | 27.5s | Action Figure Stop-Motion | STOP-MOTION |  |
+| 57 | 28.0s | Tin Toy | 3D | Turtle parade, Trump as drum major |
+| 58 | 28.5s | Art Deco Poster | ART |  |
+| 59 | 29.0s | Shadow Puppets | 2D |  |
+| 60 | 29.5s | Tilt-Shift Miniature | 3D |  |
+| 61 | 30.0s | Wood Carving | CRAFT |  |
+| 62 | 30.5s | Graffiti | ART |  |
+| 63 | 31.0s | 90s Console 3D | RETRO |  |
+| 64 | 31.5s | Cave Painting | ART |  |
+| 65 | 32.0s | Neon Sign | 2D | Fireworks at night, turtle on his shoulder |
+| 66 | 32.5s | Chrome | 3D |  |
+| 67 | 33.0s | Vaporwave | RETRO |  |
+| 68 | 33.5s | Glitch Art | OTHER |  |
+| 69 | 34.0s | Gummy Candy | 3D | Thumbs-up / arms wide |
+| 70 | 34.5s | Oscilloscope Vector | RETRO |  |
+| 71 | 35.0s | Red/Cyan Anaglyph 3D | 3D |  |
+| 72 | 35.5s | Laser Show | OTHER |  |
+| 73 | 36.0s | Impressionist | ART | Sunset on a park bench, shell pats |
+| 74 | 36.5s | Chocolate Sculpture | 3D |  |
+| 75 | 37.0s | Van Gogh Swirls | ART |  |
+| 76 | 37.5s | Ice Sculpture | 3D |  |
+| 77 | 38.0s | Pop-Up Book | CRAFT | Thumbs-up |
+| 78 | 38.5s | Bronze Monument | 3D |  |
+| 79 | 39.0s | Silent Film | 2D | Turtle winks; iris out |
+| 80 | 39.5s | 1940s Color Cartoon | 2D | THE END |
 
 ## Building it yourself
 

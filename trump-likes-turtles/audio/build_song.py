@@ -14,7 +14,7 @@ import time
 
 import numpy as np
 import soundfile as sf
-from scipy.ndimage import minimum_filter1d, uniform_filter1d
+from scipy.ndimage import maximum_filter1d, minimum_filter1d, uniform_filter1d
 from scipy.signal import fftconvolve, lfilter, resample_poly
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -92,15 +92,15 @@ def limiter_gain(x, ceiling, lookahead=0.002, release=0.08):
     return np.minimum(g, rel)
 
 
-def duck(x, key, depth_db=4.0, f=2200, q=0.6, broadband_db=1.0):
-    """Vocal-keyed dynamic EQ: while the voice is active, dip x's presence band (time-varying peaking
-    EQ: y = x + (g - 1) * bandpass(x)) plus a little broadband ducking."""
+def duck(x, key, depth_db=6.0, f=2200, q=0.6, broadband_db=1.5):
+    """Vocal-keyed dynamic EQ: while the voice is active (with 50 ms look-ahead), dip x's presence band
+    (time-varying peaking EQ: y = x + (g - 1) * bandpass(x)) plus a little broadband ducking."""
     w = 2 * np.pi * f / SR
     al = np.sin(w) / (2 * q)
     bp = lfilter([al, 0, -al], [1 + al, -2 * np.cos(w), 1 - al], x, axis=-1)
     env = 10 * np.log10(uniform_filter1d(np.atleast_2d(key).mean(0) ** 2, int(0.03 * SR)) + 1e-12)
     act = np.clip((env - (env.max() - 40)) / 15, 0, 1)
-    act = lfilter([1 - np.exp(-1 / (0.12 * SR))], [1, -np.exp(-1 / (0.12 * SR))], act)  # smooth on/off
+    act = uniform_filter1d(maximum_filter1d(act, int(0.15 * SR)), int(0.05 * SR))  # look-ahead + hold
     g = 10 ** (-depth_db * act / 20)
     return (x + (g - 1) * bp) * 10 ** (-broadband_db * act / 20)
 
@@ -141,9 +141,9 @@ def build_music(score, n, key):
 
     # --- intro: original triplet fanfare (C, then G7), timpani, roll into the verse
     tpt1 = [(0, .75, 72), (1, 1 / 3, 67), (4 / 3, 1 / 3, 67), (5 / 3, 1 / 3, 67), (2, .5, 72), (2.5, .5, 76), (3, 2 / 3, 79),
-            (11 / 3, 1 / 3, 76), (4, 1 / 3, 74), (13 / 3, 1 / 3, 74), (14 / 3, 1 / 3, 74), (5, .5, 77), (5.5, .5, 74), (6, 1.75, 79)]
-    tpt2 = [(0, .75, 64), (1, 1, 64), (2, .5, 67), (2.5, .5, 72), (3, 1, 76), (4, 1, 71), (5, .5, 74), (5.5, .5, 71), (6, 1.75, 74)]
-    low = [(0, .75, [48, 55, 64]), (2, 1.75, [48, 55, 64]), (4, .75, [43, 53, 59]), (6, 1.75, [43, 53, 59, 65])]
+            (11 / 3, 1 / 3, 76), (4, 1 / 3, 74), (13 / 3, 1 / 3, 74), (14 / 3, 1 / 3, 74), (5, .5, 77), (5.5, .5, 74), (6, 1.4, 79)]
+    tpt2 = [(0, .75, 64), (1, 1, 64), (2, .5, 67), (2.5, .5, 72), (3, 1, 76), (4, 1, 71), (5, .5, 74), (5.5, .5, 71), (6, 1.4, 74)]
+    low = [(0, .75, [48, 55, 64]), (2, 1.75, [48, 55, 64]), (4, .75, [43, 53, 59]), (6, 1.4, [43, 53, 59, 65])]
     for b, d, m in tpt1:
         bus.add(I.brass(K(m), B(d) * 0.92, 0.9, 1.2), B(b), 0.55, -0.15, 0.25)
     for b, d, m in tpt2:
@@ -151,7 +151,7 @@ def build_music(score, n, key):
     for b, d, ms in low:
         for m in ms:
             bus.add(I.brass(K(m), B(d) * 0.95, 0.7, 0.6), B(b), 0.3, -0.05, 0.2)
-    for b, m in [(0, 48), (2, 43), (3, 48), (4, 43), (5, 43), (8, 48)]:
+    for b, m in [(0, 48), (2, 43), (3, 48), (4, 43), (5, 43)]:
         bus.add(I.timpani(K(m)), B(b), 0.7, -0.3, 0.3)
     bus.add(I.roll(lambda v: I.timpani(K(43), v, 0.8), B(2), 12, 0.15, 0.8), B(6), 0.45, -0.3, 0.3)
     bus.add(I.kick(1.0), 0, 0.8)
@@ -215,9 +215,9 @@ def build_music(score, n, key):
     return bus
 
 
-SFX_GAIN = {'crash': 0.7, 'snare_roll': 0.4, 'bloop_up': 0.55, 'sparkle': 0.3, 'choir_swell': 0.9, 'whoosh': 0.55,
-            'crunch': 0.4, 'ding': 0.22, 'camera': 0.45, 'march_snare': 0.3, 'firework_launch': 0.45,
-            'firework_bang': 0.4, 'chimes': 0.5, 'wink': 0.3}
+SFX_GAIN = {'crash': 0.6, 'snare_roll': 0.4, 'bloop_up': 0.55, 'sparkle': 0.3, 'choir_swell': 0.9, 'whoosh': 0.5,
+            'crunch': 0.4, 'ding': 0.22, 'camera': 0.45, 'march_snare': 0.17, 'firework_launch': 0.35,
+            'firework_bang': 0.3, 'chimes': 0.35, 'wink': 0.3}
 SFX_PAN = {'bloop_up': -0.2, 'sparkle': 0.3, 'ding': 0.2, 'camera': 0.35, 'march_snare': 0.15, 'crunch': -0.15,
            'firework_launch': -0.3, 'firework_bang': 0.3, 'wink': 0.25}
 
@@ -228,7 +228,7 @@ def build_sfx(score, n, key):
     for c in score['sfx']:
         name, b, d = c['sfx'], c['beat'], c.get('dur', 1.0) * spb
         if name == 'snare_roll':
-            sig = I.roll(lambda v: I.snare(v), d, 24, 0.12, 1.0)
+            sig = I.roll(lambda v: I.snare(v), d, 24, 0.12, 0.85)
         elif name == 'choir_swell':
             pcs, _ = chord_pcs(next(ch for ch in score['chords'] if ch['start'] <= b < ch['end'])['chord'], key)
             sig = I.choir(tones(pcs, 57 + key, 72 + key), d + 1.0)
@@ -276,15 +276,15 @@ def main():
     voc = V.render(score, os.path.join(BUILD, 'cache', 'piper'))
     print('[2/4] music + sfx ...')
     music_bus, sfx_bus = build_music(score, n, key), build_sfx(score, n, key)
-    music = music_bus.x + 0.3 * reverb(music_bus.send, 1.8, 0.02, seed=5)
+    music = music_bus.x + 0.3 * reverb(music_bus.send, 1.3, 0.02, seed=5)
     music = biquad(biquad(music, 'peak', 2500, -4.5, 0.6), 'peak', 400, -1.5, 0.8)  # vocal pocket
     music = biquad(biquad(biquad(music, 'low', 90, -3.0), 'hp', 38), 'hp', 38)
     sfx = biquad(sfx_bus.x + 0.3 * reverb(sfx_bus.send, 1.6, 0.02, seed=6), 'hp', 45)
     vocals = vocal_chain(voc['lead'], voc['harmony'], voc['doubles'], n)
-    music, sfx = duck(music, vocals), duck(sfx, vocals, 3.0)
+    music, sfx = duck(music, vocals), duck(sfx, vocals, 5.0, broadband_db=2.0)
 
     print('[3/4] mix + master ...')
-    stems = {'vocals': vocals * 1.6, 'music': music * 0.45, 'sfx': sfx * 0.4}
+    stems = {'vocals': vocals * 2.0, 'music': music * 0.45, 'sfx': sfx * 0.4}
     mix = sum(stems.values())
     import pyloudnorm
     meter = pyloudnorm.Meter(SR)

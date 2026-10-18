@@ -552,7 +552,7 @@ void main(){
   }
   // aerial perspective
   float fog = 1.0 - exp(-max(depth*60.0 - 8.0, 0.0)*0.02);
-  if (uMode != 14 && uMode != 10) col = mix(col, lin(uSkyHor), fog*0.55);
+  if (uMode != 14 && uMode != 10 && !(uMode == 9 && kind < 0)) col = mix(col, lin(uSkyHor), fog*0.55);
   if (uMode == 10 && kind < 1) col = mix(col, vec3(lum(col))*vec3(0.25, 0.4, 0.55), 0.75)*0.55;
   // tone map + gamma
   col = col/(1.0 + col*0.15);

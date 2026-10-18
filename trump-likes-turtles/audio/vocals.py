@@ -36,6 +36,7 @@ DUMMY = ', and'  # appended with zero frames: the last sung vowel is not sentenc
 WORD_GAP = 1.0  # frames kept of each word gap (otherwise legato)
 CODA_STRETCH = 2.0  # phrase-final consonants are sung longer ("pond", "bond")
 MAX_CONS = 0.65  # attack run + consonants may take at most this share of a note
+SONORANT_MIN = 4  # minimum frames for glides/liquids/nasals (an audible "y" in "yes")
 OUT_SR = 44100
 
 
@@ -113,8 +114,8 @@ class Singer:
             'scales': np.array([ns, 1.0, 0.5], np.float32), 'dur_override': d.astype(np.float32).reshape(1, 1, -1)})
         return out[0].squeeze().astype(np.float64), out[1].squeeze().astype(np.float64)
 
-    def plan(self, notes, text, spb, onset_cap=0.12, release=0.04):
-        """Integer frames per phoneme id so that each note's vowel starts on its beat."""
+    def plan(self, notes, text, spb, shift=None, onset_cap=0.12, release=0.04):
+        """Integer frames per phoneme id so that each note's vowel starts on its beat (minus `shift`)."""
         text = re.sub(r'[.!?…]+', ',', re.sub(r'[“”"]', '', text)).rstrip(' ,') + DUMMY
         ph = []
         for s in self.voice.phonemize(text):
@@ -137,6 +138,9 @@ class Singer:
         for j, p in enumerate(ph):
             kind[2 + 2 * j] = 'sil' if p in SILENT else 'str' if p in 'ˈˌ' else 'v' if p[0] in VOWELS else 'c'
         w = self.run(ids, ns=0.0)[1]  # natural durations
+        for j, p in enumerate(ph):
+            if p in 'jwlɹmnŋ':
+                w[2 + 2 * j] = max(w[2 + 2 * j], SONORANT_MIN)
         for i in range(1, n):  # legato: punctuation and word gaps get (almost) no time
             if 'sil' in (kind[i], kind[i - 1]):
                 w[i] = min(w[i], WORD_GAP) if kind[i] == 'sil' and ph[(i - 2) // 2] == ' ' else 0
@@ -150,11 +154,11 @@ class Singer:
             dur[i + 1:v0[k]] = w[i + 1:v0[k]]
         dur[:2] = np.minimum(w[:2], 1)
         dur[2:pre[0]] = w[2:pre[0]] * min(1, onset_cap * F / max(w[2:pre[0]].sum(), 1e-9))
-        T = [nt['beat'] * spb for nt in notes]
+        T = [nt['beat'] * spb - (0 if shift is None else shift[k]) for k, nt in enumerate(notes)]
         for k in range(K):  # note k = attack run + vowel + consonants up to the next attack run
             s, e = v0[k], vend[k]
             last = k + 1 == K
-            span = ((notes[k]['dur'] * spb - release) if last else T[k + 1] - T[k]) * F
+            span = ((notes[k]['beat'] + notes[k]['dur']) * spb - release - T[k] if last else T[k + 1] - T[k]) * F
             c1 = cut if last else pre[k + 1]
             run, cl = dur[pre[k]:s].copy(), w[e:c1] * (CODA_STRETCH if last else 1.0)
             if run.sum() + cl.sum() > MAX_CONS * span:
@@ -179,7 +183,7 @@ class Singer:
             gaps = [q for q in range(vend[k - 1] if k else 2, pre[k]) if kind[q] == 'sil' and ph[(q - 2) // 2] == ' ']
             first = 2 if k == 0 else gaps[-1] + 1 if gaps else None
             word_start.append(None if first is None else icum[first] * sec)
-        return dict(ids=ids, dur=np.diff(icum), anchors=icum[pre] * sec, clean=clean, word_start=word_start,
+        return dict(ids=ids, dur=np.diff(icum), anchors=icum[pre] * sec, clean=clean, word_start=word_start, T=T,
                     vowels=[(icum[v0[k]] * self.hop, icum[vend[k]] * self.hop) for k in range(K)])
 
     def analyze(self, x, vowels):
@@ -252,14 +256,32 @@ def phrases(score):
     return groups
 
 
+def late_onsets(an, P):
+    """Voicing onset (as resynthesized) minus planned anchor (s) for vowels after silence/unvoiced
+    consonants (e.g. a stressed /t/ whose aspiration delays the vowel); 0 where not measurable."""
+    v, t = an['voiced'], an['t']
+    out = []
+    for a, clean in zip(P['anchors'], P['clean']):
+        on = [t[i] for i in np.flatnonzero((t > a - 0.03) & (t < a + 0.12)) if clean and v[i] and not v[i - 1] and v[i:i + 4].all()]
+        out.append(min(on, key=lambda o: abs(o - a)) - a if on else 0.0)
+    return np.array(out)
+
+
 def sing_phrase(S, score, grp, seed):
-    S.reseed(seed)
     spb = score['secondsPerBeat']
     notes = [s for s in score['syllables'] if s['line'] in grp]
-    P = S.plan(notes, ' '.join(score['lines'][i]['text'] for i in grp), spb)
-    x, _ = S.run(P['ids'], P['dur'])
-    start = notes[0]['beat'] * spb - P['anchors'][0]  # song time of the phrase's first sample
-    an = S.analyze(x, P['vowels'])
+    text = ' '.join(score['lines'][i]['text'] for i in grp)
+    shift = None
+    for _ in range(2):  # 2nd pass: start late-voicing syllables earlier (damped: the burst of an
+        S.reseed(seed)  # aspirated stop should lead the beat a little, its vowel follow a little)
+        P = S.plan(notes, text, spb, shift)
+        x, _ = S.run(P['ids'], P['dur'])
+        an = S.analyze(x, P['vowels'])
+        late = late_onsets(an, P)
+        if shift is not None or late.max() < 0.03:
+            break
+        shift = np.clip(0.5 * late, 0, 0.05) * (late >= 0.03)
+    start = P['T'][0] - P['anchors'][0]  # song time of the phrase's first sample
     mel = [midi(n['pitch']) + score['transpose'] for n in notes]
     f0 = f0_contour(an['t'] + start, notes, spb, mel)
     return dict(notes=notes, P=P, x=x, start=start, an=an, mel=mel, f0=f0, lead=S.resynth(an, f0, x))

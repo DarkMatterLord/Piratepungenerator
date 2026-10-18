@@ -50,12 +50,12 @@ def align(ref, hyp):
     return D[-1, -1], pairs[::-1]
 
 
-def asr_eval(model, path, score, true_starts):
+def asr_eval(model, path, score, true_starts, offset=0.0):
     x, sr = sf.read(path, always_2d=True)
-    x = resample_poly(x.mean(1), 160, 441).astype(np.float32)  # 44.1k -> 16k
+    x = resample_poly(x.mean(1), 160, 441).astype(np.float32)[int(offset * 16000):]  # 44.1k -> 16k
     segs, _ = model.transcribe(x, language='en', word_timestamps=True, beam_size=5,
                                condition_on_previous_text=False, vad_filter=False)
-    hyp = [(norm(w.word), w.start, w.word.strip()) for s in segs for w in s.words if norm(w.word)]
+    hyp = [(norm(w.word), w.start + offset, w.word.strip()) for s in segs for w in s.words if norm(w.word)]
     ref = ref_words(score)
     dist, pairs = align([r[0] for r in ref], [h[0] for h in hyp])
     ok = [(i, j) for i, j in pairs if i is not None and j is not None and ref[i][0] == hyp[j][0]]
@@ -172,7 +172,7 @@ def run(score, build, mp3, voc, asr=True):
            'first_sample_abs_max_10ms': round(float(np.abs(song[:, :441]).max()), 4)}
     spectrogram(song, score, os.path.join(qa_dir, 'spectrogram.png'))
     rep['pitch'], rep['vowel_onset_timing'] = pitch_check(voc, os.path.join(qa_dir, 'pitch_track.png'))
-    lead_in = np.array([t - s for (t, _), s in zip(ref_words(score), voc['qa']['word_starts']) if s is not None])
+    lead_in = np.array([t - s for (_, t), s in zip(ref_words(score), voc['qa']['word_starts']) if s is not None])
     rep['consonant_lead_in_ms'] = {'words': len(lead_in), 'median': round(float(np.median(lead_in)) * 1000),
                                    'p90': round(float(np.percentile(lead_in, 90)) * 1000)}
     rep['mp3'] = mp3_check(mp3, song)
@@ -183,6 +183,8 @@ def run(score, build, mp3, voc, asr=True):
         ts = voc['qa']['word_starts']
         rep['asr_vocal_stem'] = asr_eval(model, os.path.join(build, 'stems', 'vocals.wav'), score, ts)
         rep['asr_full_mix'] = asr_eval(model, os.path.join(build, 'song.wav'), score, ts)
+        first = score['lines'][0]['start'] * score['secondsPerBeat'] - 0.5  # whisper garbles words right after the intro
+        rep['asr_full_mix_from_first_vocal'] = asr_eval(model, os.path.join(build, 'song.wav'), score, ts, first)
     with open(os.path.join(qa_dir, 'report.json'), 'w') as f:
         json.dump(rep, f, indent=1)
     print(json.dumps(rep, indent=1))
