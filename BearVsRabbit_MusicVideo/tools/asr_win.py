@@ -1,9 +1,10 @@
+"""Re-check specific windows. usage: python asr_win.py <models_dir> <vocals16k.wav> a:b [c:d ...]"""
 import sherpa_onnx, soundfile as sf, numpy as np, sys
-d="/tmp/claude-0/models/sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8/"
+d = sys.argv[1] + "/sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8/"
 rec = sherpa_onnx.OfflineRecognizer.from_transducer(encoder=d+"encoder.int8.onnx", decoder=d+"decoder.int8.onnx",
         joiner=d+"joiner.int8.onnx", tokens=d+"tokens.txt", model_type="nemo_transducer", num_threads=4)
-x, sr = sf.read("vocals16k.wav", dtype="float32")
-for a,b in [tuple(map(float,s.split(':'))) for s in sys.argv[1:]]:
+x, sr = sf.read(sys.argv[2], dtype="float32")
+for a,b in [tuple(map(float,s.split(':'))) for s in sys.argv[3:]]:
     seg = x[int(a*sr):int(b*sr)]; seg = seg/(np.abs(seg).max()+1e-9)*0.9
     s = rec.create_stream(); s.accept_waveform(sr, seg); rec.decode_stream(s)
     r = s.result; w=[]

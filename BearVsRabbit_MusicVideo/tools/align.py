@@ -1,5 +1,8 @@
+"""Align timestamped ASR words to the real lyrics. usage: python align.py <asr_chunks.json>  -> data/timing.json"""
 import json, re, difflib, sys
-LYR = "/home/user/Piratepungenerator/BearVsRabbit_MusicVideo/data/lyrics.txt"
+import os
+DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data")
+LYR = os.path.join(DATA, "lyrics.txt")
 chunks = json.load(open(sys.argv[1] if len(sys.argv)>1 else "asr_chunks.json"))
 W, H, M = 24.0, 16.0, 4.0
 # ---- merge chunk tokens, keeping each token from the chunk where it is most central
@@ -95,7 +98,7 @@ for s_i, s in enumerate(sections):
     s["start"] = lines[s["first_line"]]["start"]
     s["speaker"] = "ted" if "TED" in s["title"] else "floppy"
 for L in lines: L["speaker"] = sections[L["section"]]["speaker"]
-json.dump({"sections": sections, "lines": lines}, open("/home/user/Piratepungenerator/BearVsRabbit_MusicVideo/data/timing.json", "w"), indent=1)
+json.dump({"sections": sections, "lines": lines}, open(os.path.join(DATA, "timing.json"), "w"), indent=1)
 for li, L in enumerate(lines):
     unm = sum(1 for (l2, _, _), mt in zip(lw, match) if l2 == li and mt is None)
     print(f"{L['start']:7.2f}-{L['end']:7.2f} [{unm}] {L['text'][:70]}")
