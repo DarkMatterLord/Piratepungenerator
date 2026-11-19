@@ -1,0 +1,15 @@
+{
+  "name": "bear-vs-rabbit-music-video",
+  "version": "1.0.0",
+  "description": "Procedural rap battle music video renderer",
+  "main": "src/render.js",
+  "scripts": {
+    "stills": "node src/render.js --stills 12,82,197.6 --outdir out/stills",
+    "render": "tools/render_all.sh"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@napi-rs/canvas": "^1.1.1"
+  }
+}

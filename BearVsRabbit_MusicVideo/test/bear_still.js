@@ -1,0 +1,14 @@
+require('../src/assets');
+const { createCanvas } = require('@napi-rs/canvas');
+const fs = require('fs');
+const B = require('../src/bear');
+let t0 = Date.now();
+const parts = B.build();
+console.log('build ms', Date.now() - t0);
+const cv = createCanvas(1600, 900), ctx = cv.getContext('2d');
+ctx.fillStyle = '#2a2230'; ctx.fillRect(0, 0, 1600, 900);
+t0 = Date.now();
+B.draw(ctx, parts, { x: 400, y: 840, scale: 1.3, turn: 0.3, mouth: 0, armL: -0.3, armR: 0.3 });
+B.draw(ctx, parts, { x: 1150, y: 840, scale: 1.3, turn: 0.4, mouth: 0.8, anger: 1, ...B.MIC_POSE, armR: -1.6, tilt: 0.05, bob: 0.5 });
+console.log('draw ms', (Date.now() - t0) / 2);
+fs.writeFileSync('/tmp/claude-0/stills/bear.png', cv.toBuffer('image/png'));
