@@ -1,0 +1,3 @@
+node_modules/
+# Holds your bot token. Never commit it.
+.env
